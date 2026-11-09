@@ -7,7 +7,7 @@ import sys
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
-from config import COLLECTION, EMBED_MODEL, QDRANT_PATH, TOP_K
+from config import COLLECTION, EMBED_MODEL, QDRANT_PATH, QUERY_PREFIX, TOP_K
 
 
 def main() -> None:
@@ -19,7 +19,7 @@ def main() -> None:
     model = SentenceTransformer(EMBED_MODEL)
     client = QdrantClient(path=str(QDRANT_PATH))
 
-    vec = model.encode(query).tolist()
+    vec = model.encode(QUERY_PREFIX + query).tolist()
     hits = client.query_points(COLLECTION, query=vec, limit=TOP_K).points
 
     print(f"\nТоп-{TOP_K} для: {query}\n")
