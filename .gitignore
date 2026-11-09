@@ -1,0 +1,32 @@
+# === Секреты: никогда не коммитим ===
+.env
+.env.*
+!.env.example
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# === ML: локальные данные и модели ===
+ml/.qdrant/
+ml/data/**/*.pdf
+ml/data/**/*.docx
+ml/models/
+
+# === Frontend (пригодится позже) ===
+node_modules/
+dist/
+build/
+
+# === IDE и система ===
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
