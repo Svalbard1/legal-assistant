@@ -1,4 +1,12 @@
-sentence-transformers>=3.0,<4
-qdrant-client>=1.10,<2
-pypdf>=4.0
-python-docx>=1.1
+# ML-сервис legal-assistant. Версии = проверенное окружение (conda base, python 3.13).
+# torch здесь не фиксируем: ставится как зависимость sentence-transformers;
+# для лёгкого CPU-образа torch ставится отдельно в Dockerfile (см. ml/Dockerfile).
+sentence-transformers==3.4.1
+qdrant-client==1.20.0
+pypdf==7.0.0
+python-docx==1.2.0
+
+# HTTP-слой
+fastapi==0.162.2
+uvicorn[standard]==0.40.0
+python-multipart==0.0.33
