@@ -10,3 +10,5 @@ COLLECTION = "legal_docs"
 CHUNK_SIZE = 500                      # символов на чанк
 CHUNK_OVERLAP = 50
 TOP_K = 3
+
+QUERY_PREFIX = "Represent this sentence for searching relevant passages: "  # инструкция bge-m3 для поисковых запросов (даёт +recall, проверено eval)

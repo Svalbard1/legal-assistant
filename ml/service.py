@@ -19,7 +19,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from config import COLLECTION, EMBED_MODEL, QDRANT_PATH, TOP_K, UPLOAD_DIR
+from config import COLLECTION, EMBED_MODEL, QDRANT_PATH, QUERY_PREFIX, TOP_K, UPLOAD_DIR
 from ingest import chunk_text, doc_id_for, index_chunks, read_text
 
 MAX_UPLOAD_MB = 25
@@ -192,7 +192,7 @@ def ask(req: AskRequest) -> AskResponse:
     if not client.collection_exists(COLLECTION):
         raise HTTPException(503, "Индекс пуст — сначала загрузите документы через /ingest")
 
-    vec = get_model().encode(req.question).tolist()
+    vec = get_model().encode(QUERY_PREFIX + req.question).tolist()
     hits = client.query_points(COLLECTION, query=vec, limit=req.top_k).points
 
     sources = [Source(file=h.payload.get("file", "?"),
