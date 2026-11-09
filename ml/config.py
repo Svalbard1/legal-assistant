@@ -1,8 +1,9 @@
 from pathlib import Path
 
 ML_DIR = Path(__file__).resolve().parent
-DATA_DIR = ML_DIR / "data" / "sample"
-QDRANT_PATH = ML_DIR / ".qdrant"      # локальное хранилище, в git не попадёт
+DATA_DIR = ML_DIR / "data" / "sample"       # корпус для CLI-индексации (ingest.py)
+UPLOAD_DIR = ML_DIR / "data" / "uploads"    # файлы, пришедшие через POST /ingest
+QDRANT_PATH = ML_DIR / ".qdrant"      # локальное хранилище (в гите нет)
 
 EMBED_MODEL = "BAAI/bge-m3"           # 1024-мерные эмбеддинги
 COLLECTION = "legal_docs"

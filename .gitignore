@@ -18,6 +18,7 @@ htmlcov/
 ml/.qdrant/
 ml/data/**/*.pdf
 ml/data/**/*.docx
+ml/data/uploads/
 ml/models/
 
 # === Frontend (пригодится позже) ===
