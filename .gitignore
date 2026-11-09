@@ -31,3 +31,5 @@ build/
 .vscode/
 .DS_Store
 Thumbs.db
+# === Материалы кейса: PDF не публикуем (репо публичный) ===
+docs/*.pdf
