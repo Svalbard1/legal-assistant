@@ -80,7 +80,7 @@ def test_ingest_and_ask_roundtrip(api):
     assert isinstance(body["took_ms"], int)
     assert len(body["sources"]) == 2
     assert body["sources"][0]["file"] == "пример.txt"
-    assert set(body["sources"][0]) == {"file", "text", "score"}
+    assert set(body["sources"][0]) == {"file", "text", "score", "page"}
     assert body["answer"].startswith("Вопрос:")
 
 
