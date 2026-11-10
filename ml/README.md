@@ -74,6 +74,12 @@ Baseline (2026-11-10, dense 500/50 + префикс): recall@3 = 94.1%, MRR = 0.
 | `ingest.py` | парсинг → чанкинг → индексация (`index_chunks` общий для CLI и сервиса) |
 | `retrieve.py` | CLI-поиск, удобно для отладки без HTTP |
 | `config.py` | пути, модель, размер чанков |
+| `eval.py` | golden-QA кейса: recall@k / MRR (27 вопросов) |
+| `eval_kb.py`, `golden_kb.jsonl` | eval на реальной базе организаторов (18 вопросов) |
+| `eval_hybrid.py` | эксперимент: гибрид dense+BM25 (RRF) |
+| `golden_qa.jsonl` | эталоны кейса |
+| `pyproject.toml` | политика ruff (исключения) |
+| `submit/` | solution.py — сабмит на платформу (+ build_zip.py) |
 | `docs/` | контракт API v0.1 и гайды интеграции (источник истины по стыку) |
 | `tests/` | юнит + smoke (API на фейковом энкодере) |
 | `data/sample/` | тестовый корпус (в git: `пример.txt`; PDF/DOCX — нет) |
