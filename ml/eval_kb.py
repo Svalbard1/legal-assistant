@@ -120,12 +120,42 @@ def chunk_text(text: str, size: int = 500, overlap: int = 50):
     return chunks
 
 
+EDITION_MARK_RE = re.compile(r"\s*\(утратил силу\)|\s*ред\.?\s*\d{4}", re.IGNORECASE)
+
+
+def doc_base(name: str) -> str:
+    """'Регламент ... ред 2023 (утратил силу)' и '... ред 2025' -> один базовый титул."""
+    return EDITION_MARK_RE.sub("", name).strip(" ,;-")
+
+
+def expand_editions(top, context_k=3, extra=2):
+    """Поднимает в контекст чанки других редакций документов из топ-context_k.
+
+    LLM с правилом «дата события -> редакция» сам выберет применимую версию;
+    retrieval лишь гарантирует, что обе редакции попали в контекст."""
+    head = list(top[:context_k])
+    tail = list(top[context_k:])
+    bases = {doc_base(c["file"]) for c, _s in head}
+    head_files = {c["file"] for c, _s in head}
+    companions, rest = [], []
+    for c, s in tail:
+        if len(companions) < extra and doc_base(c["file"]) in bases \
+                and c["file"] not in head_files:
+            companions.append((c, s))
+        else:
+            rest.append((c, s))
+    return head + companions + rest
+
+
 def main():
     ap = argparse.ArgumentParser(description="Golden-QA на реальной базе организаторов")
     ap.add_argument("--zip", default="data/kb/knowledge-base.zip")
     ap.add_argument("--questions", default="data/kb/demo_questions.csv")
     ap.add_argument("--golden", default="golden_kb.jsonl")
-    ap.add_argument("--top-k", type=int, default=3)
+    ap.add_argument("--top-k", type=int, default=8)  # глубина поиска
+    ap.add_argument("--context-k", type=int, default=3)  # размер головы контекста
+    ap.add_argument("--companion-extra", type=int, default=2)  # максимум чанков-компаньонов
+    ap.add_argument("--no-expand", action="store_true")  # отключить расширение редакций
     ap.add_argument("--json", dest="json_out")
     args = ap.parse_args()
 
@@ -164,13 +194,23 @@ def main():
         scores = M @ np.asarray(query_vecs[q_index])
         order = np.argsort(-scores)[:args.top_k]
         top = [(chunks[i], float(scores[i])) for i in order]
+        strict = top[:3]
+        if args.no_expand:
+            final = top[:args.context_k]
+        else:
+            final = expand_editions(top, args.context_k, args.companion_extra)
 
         expect = [k.lower() for k in g.get("expect_doc_any", [])]
-        rank = 0
-        for r, (c, _s) in enumerate(top, 1):
+        rank, rank_strict = 0, 0
+        for r, (c, _s) in enumerate(final, 1):
             fname_l = c["file"].lower()
             if any(k in fname_l for k in expect):
                 rank = r
+                break
+        for r, (c, _s) in enumerate(strict, 1):
+            fname_l = c["file"].lower()
+            if any(k in fname_l for k in expect):
+                rank_strict = r
                 break
         best = top[0][1] if top else 0.0
 
@@ -186,25 +226,26 @@ def main():
                         hits_at[k] += 1
             else:
                 misses.append(qid)
-            status = f"rank={rank}" if rank else "MISS"
+            status = f"rank={rank} (strict {rank_strict})" if rank else "MISS"
             print(f"  [{qid}] {status:<8} top1={best:.3f}  {question[:56]}")
 
         if any("ред 2025" in k or "ред 2023" in k for k in expect):
-            r25 = next((r for r, (c, _s) in enumerate(top, 1)
+            r25 = next((r for r, (c, _s) in enumerate(final, 1)
                         if "ред 2025" in c["file"].lower()), None)
-            r23 = next((r for r, (c, _s) in enumerate(top, 1)
+            r23 = next((r for r, (c, _s) in enumerate(final, 1)
                         if "ред 2023" in c["file"].lower()), None)
             edition_rows.append({"id": qid, "rank_red2025": r25, "rank_red2023": r23})
             print(f"      редакции: ред 2025 rank={r25}, ред 2023 rank={r23}")
 
     n_hit = len(hit_scores)
     summary = {"questions": len(questions), "top_k": args.top_k,
+               "context_k": args.context_k, "expand": not args.no_expand,
                "model": EMBED_MODEL, "chunks": len(chunks)}
     print("\n=== ИТОГИ (hit-вопросы) ===")
     for k in ks:
         recall = hits_at[k] / n_hit if n_hit else 0.0
         summary[f"recall@{k}"] = round(recall, 3)
-        print(f"  recall@{k} = {hits_at[k]}/{n_hit} = {recall:.1%}")
+        print(f"  recall@{k} (контекст {args.context_k}+компаньоны) = {hits_at[k]}/{n_hit} = {recall:.1%}")
     summary["mrr"] = round(rr_total / n_hit, 3) if n_hit else 0.0
     print(f"  MRR = {summary['mrr']:.3f}")
     if misses:
