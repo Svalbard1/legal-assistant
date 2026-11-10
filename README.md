@@ -73,6 +73,7 @@ recall@3 = **92.6%**, recall@10 = **100%**, MRR = **0.844**. Любое изме
 | [ml/docs/ONBOARDING_FRONTEND.md](ml/docs/ONBOARDING_FRONTEND.md) | фронт | онбординг + формат данных + состояния UI |
 | [ml/README.md](ml/README.md) | ML + все | запуск, тесты, eval, структура ml/ |
 | [ml/submit/README.md](ml/submit/README.md) | ML | сабмит платформы: регламент, лимиты, логика |
+| [frontend/TASKS.md](frontend/TASKS.md) | фронт (Гульсым) | задачи с критериями приёмки + демо-скрипт 90 сек для жюри |
 
 ## Статус (2026-11-10)
 
