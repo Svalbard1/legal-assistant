@@ -186,18 +186,17 @@ def expand_editions(top, context_k=3, extra=2):
     события выберет применимую. Компаньоны ищутся в результатах поиска за
     пределами головы контекста (поиск идёт с SEARCH_K=8)."""
     head = list(top[:context_k])
-    tail = list(top[context_k:])
     bases = {doc_base(c["file"]) for c, _s in head}
-    taken = {c["file"] for c, _s in head}  # голова + уже добавленные компаньоны
-    companions, rest = [], []
-    for c, s in tail:
-        if len(companions) < extra and doc_base(c["file"]) in bases \
-                and c["file"] not in taken:
+    taken = {c["file"] for c, _s in head}
+    companions = []
+    for c, s in top[context_k:]:
+        if len(companions) >= extra:
+            break
+        if doc_base(c["file"]) in bases and c["file"] not in taken:
             companions.append((c, s))
             taken.add(c["file"])
-        else:
-            rest.append((c, s))
-    return head + companions + rest
+    # контекст = голова (топ-3) + компаньоны-редакции (<=2); дубликаты отброшены
+    return head + companions
 
 
 # --- HTTP к прокси платформы (ограниченные ретраи: 429/5xx/сеть) ---
