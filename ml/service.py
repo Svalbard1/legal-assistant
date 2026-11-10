@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import COLLECTION, EMBED_MODEL, QDRANT_PATH, QUERY_PREFIX, TOP_K, UPLOAD_DIR
-from ingest import chunk_text, doc_id_for, index_chunks, read_text
+from ingest import chunk_document, doc_id_for, index_chunks, read_text_pages
 
 MAX_UPLOAD_MB = 25
 ALLOWED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
@@ -51,6 +51,7 @@ class Source(BaseModel):
     file: str
     text: str
     score: float
+    page: int | None = None  # страница источника (PDF); для txt/md = 1
 
 
 class AskResponse(BaseModel):
@@ -114,8 +115,8 @@ def llm_stub(question: str, sources: list[Source]) -> str:
     lines = [
         f"Вопрос: {question}",
         "",
-        f"Найдено {len(sources)} фрагментов. Генерация LLM ещё не подключена "
-        "(llm=stub), ниже — выдержки из источников:",
+        (f"Найдено {len(sources)} фрагментов. Генерация LLM ещё не подключена "
+         "(llm=stub), ниже — выдержки из источников:"),
     ]
     for i, s in enumerate(sources, 1):
         lines.append(f"{i}. [{s.file}, score={s.score}] {s.text[:200].strip()}...")
@@ -164,16 +165,16 @@ def ingest(file: UploadFile = File(...)) -> IngestResponse:
     path.write_bytes(data)
 
     try:
-        text = read_text(path)
+        pages = read_text_pages(path)
     except Exception as e:
         raise HTTPException(400, f"Не удалось прочитать файл: {e}") from e
 
-    chunks = chunk_text(text)
+    chunks = chunk_document(pages)
     if not chunks:
         raise HTTPException(
             400, "В файле не найден текст (пустой документ или скан без текстового слоя)")
 
-    vectors = get_model().encode(chunks)
+    vectors = get_model().encode([c["text"] for c in chunks])
     try:
         n_chunks = index_chunks(get_client(), filename=filename,
                                 chunks=chunks, vectors=vectors)
@@ -197,7 +198,8 @@ def ask(req: AskRequest) -> AskResponse:
 
     sources = [Source(file=h.payload.get("file", "?"),
                       text=h.payload.get("text", ""),
-                      score=round(h.score, 4))
+                      score=round(h.score, 4),
+                      page=h.payload.get("page"))
                for h in hits]
     if not sources:
         raise HTTPException(404, "По запросу ничего не найдено")

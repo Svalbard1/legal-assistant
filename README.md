@@ -53,6 +53,7 @@ uvicorn service:app --port 8001     # Swagger: http://localhost:8001/docs
 |---|---|---|
 | `LLM_API_URL` | пусто | Пусто → `llm: "stub"` (answer = выжимка источников). OpenAI-совместимый URL → `llm: "vllm"` (настоящая генерация) |
 | `DATA_DIR`, `QDRANT_PATH` | `ml/data/sample`, `ml/.qdrant` | Пути заданы в `ml/config.py` (env-вынос — v0.2) |
+| `CHUNKER` | `dense` | Режим чанкера: `dense` / `dense_pages` (точные страницы, −18 п.п. recall@3) / `structured` (эксперим.) |
 
 Сабмит платформы получает свои `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL` автоматически — см. [ml/submit/README.md](ml/submit/README.md).
 
@@ -73,6 +74,7 @@ recall@3 = **92.6%**, recall@10 = **100%**, MRR = **0.844**. Любое изме
 | [ml/docs/ONBOARDING_FRONTEND.md](ml/docs/ONBOARDING_FRONTEND.md) | фронт | онбординг + формат данных + состояния UI |
 | [ml/README.md](ml/README.md) | ML + все | запуск, тесты, eval, структура ml/ |
 | [ml/submit/README.md](ml/submit/README.md) | ML | сабмит платформы: регламент, лимиты, логика |
+| [frontend/TASKS.md](frontend/TASKS.md) | фронт (Гульсым) | задачи с критериями приёмки + демо-скрипт 90 сек для жюри |
 
 ## Статус (2026-11-10)
 
