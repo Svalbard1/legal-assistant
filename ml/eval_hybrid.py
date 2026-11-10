@@ -26,8 +26,8 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from config import EMBED_MODEL, QUERY_PREFIX
-from eval_kb import load_golden as load_golden_kb
 from eval_kb import chunk_text, load_kb, load_questions
+from eval_kb import load_golden as load_golden_kb
 from ingest import chunk_document, read_text_pages
 
 HERE = Path(__file__).resolve().parent
