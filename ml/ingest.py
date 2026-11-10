@@ -17,12 +17,24 @@ import uuid
 from pathlib import Path
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import (Distance, FieldCondition, Filter,
-                                  FilterSelector, MatchValue, PointStruct,
-                                  VectorParams)
+from qdrant_client.models import (
+    Distance,
+    FieldCondition,
+    Filter,
+    FilterSelector,
+    MatchValue,
+    PointStruct,
+    VectorParams,
+)
 
-from config import (CHUNK_OVERLAP, CHUNK_SIZE, COLLECTION, DATA_DIR,
-                    EMBED_MODEL, QDRANT_PATH)
+from config import (
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    COLLECTION,
+    DATA_DIR,
+    EMBED_MODEL,
+    QDRANT_PATH,
+)
 
 # Заголовок/начало пункта: "1. ПРЕДМЕТ ДОГОВОРА", "4.1. За просрочку...", "Статья 5"
 HEADER_RE = re.compile(r"^\s*(?:\d+(?:\.\d+)*\.?\s+\S|статья\s+\d+\.?\s)", re.IGNORECASE)

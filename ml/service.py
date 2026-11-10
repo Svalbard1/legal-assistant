@@ -115,8 +115,8 @@ def llm_stub(question: str, sources: list[Source]) -> str:
     lines = [
         f"Вопрос: {question}",
         "",
-        f"Найдено {len(sources)} фрагментов. Генерация LLM ещё не подключена "
-        "(llm=stub), ниже — выдержки из источников:",
+        (f"Найдено {len(sources)} фрагментов. Генерация LLM ещё не подключена "
+         "(llm=stub), ниже — выдержки из источников:"),
     ]
     for i, s in enumerate(sources, 1):
         lines.append(f"{i}. [{s.file}, score={s.score}] {s.text[:200].strip()}...")
