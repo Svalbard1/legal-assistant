@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "ml/**", "be/**", "fe/**"]
+  pull_request:
+
+jobs:
+  ml-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies (CPU torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Ruff (lint)
+        run: ruff check .
+      - name: Pytest (unit + API smoke)
+        run: pytest tests -q
