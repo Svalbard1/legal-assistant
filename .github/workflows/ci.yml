@@ -2,7 +2,8 @@ name: ci
 
 on:
   push:
-    branches: [main, "ml/**", "be/**", "fe/**"]
+    # ветки команд: ml/svalbard1, be/* и backend/* (бекенд), fe/* (фронт)
+    branches: [main, "ml/**", "be/**", "backend/**", "fe/**"]
   pull_request:
 
 jobs:
