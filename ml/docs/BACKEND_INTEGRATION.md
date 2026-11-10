@@ -33,11 +33,18 @@ ml/
 ├── ingest.py                # парсинг + чанкинг + индексация (общий код CLI и сервиса)
 ├── retrieve.py              # CLI-поиск, удобно для отладки без HTTP
 ├── config.py                # пути, модель, размеры чанков
+├── eval.py                  # golden-QA eval кейса: recall@k / MRR (27 вопросов)
+├── eval_kb.py               # golden-QA на реальной базе организаторов
+├── eval_hybrid.py           # эксперимент: гибрид dense+BM25 (RRF)
+├── golden_qa.jsonl          # 27 эталонов кейса
+├── golden_kb.jsonl          # 18 эталонов организаторов
 ├── requirements.txt         # + requirements-dev.txt (pytest, ruff — для тестов)
 ├── Dockerfile
 ├── .env.example             # LLM_API_URL
+├── pyproject.toml           # политика ruff (исключения B008/BLE001/S110)
 ├── docs/                    # контракт и гайды (источник истины по стыку)
 ├── tests/                   # pytest: юнит + smoke API (быстрые, модель не грузится)
+├── submit/                  # solution.py — сабмит на платформу (+ build_zip.py)
 ├── data/sample/             # тестовый пример.txt (коммитится), реальные PDF — нет
 └── data/uploads/            # файлы, пришедшие через POST /ingest (в git не попадают)
 ```
