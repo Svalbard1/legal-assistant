@@ -188,12 +188,13 @@ def expand_editions(top, context_k=3, extra=2):
     head = list(top[:context_k])
     tail = list(top[context_k:])
     bases = {doc_base(c["file"]) for c, _s in head}
-    head_files = {c["file"] for c, _s in head}
+    taken = {c["file"] for c, _s in head}  # голова + уже добавленные компаньоны
     companions, rest = [], []
     for c, s in tail:
         if len(companions) < extra and doc_base(c["file"]) in bases \
-                and c["file"] not in head_files:
+                and c["file"] not in taken:
             companions.append((c, s))
+            taken.add(c["file"])
         else:
             rest.append((c, s))
     return head + companions + rest
