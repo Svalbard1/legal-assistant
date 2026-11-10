@@ -14,6 +14,7 @@ import os
 import threading
 import time
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,9 +43,16 @@ app.add_middleware(
 # --- Схемы контракта v0.1 ---
 
 
+class HistoryMessage(BaseModel):
+    """Реплика истории диалога (без последнего вопроса)."""
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class AskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
     top_k: int = Field(default=TOP_K, ge=1, le=20)
+    history: list[HistoryMessage] = Field(default_factory=list, max_length=20)
 
 
 class Source(BaseModel):
@@ -110,8 +118,12 @@ def llm_flag() -> str:
     return "vllm" if LLM_API_URL else "stub"
 
 
-def llm_stub(question: str, sources: list[Source]) -> str:
-    """Заглушка генерации до подключения vLLM: выжимка найденных фрагментов."""
+def llm_stub(question: str, sources: list[Source],
+             history: list[HistoryMessage] | None = None) -> str:
+    """Заглушка генерации до подключения реального LLM: выжимка найденных фрагментов.
+
+    history валидируется на входе, но на содержание выжимки не влияет;
+    при подключении реального LLM (LLM_API_URL) уйдёт в messages перед вопросом."""
     lines = [
         f"Вопрос: {question}",
         "",
@@ -187,7 +199,10 @@ def ingest(file: UploadFile = File(...)) -> IngestResponse:
 
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest) -> AskResponse:
-    """Вопрос -> топ-K фрагментов + ответ (пока выжимка источников, llm=stub)."""
+    """Вопрос (+ необязательная история диалога) -> топ-K фрагментов и ответ.
+
+    history в v0.1.x (llm=stub) принимается и валидируется, но на содержание
+    выжимки не влияет; при llm="vllm" уйдёт в генерацию."""
     t0 = time.monotonic()
     client = get_client()
     if not client.collection_exists(COLLECTION):
@@ -205,7 +220,7 @@ def ask(req: AskRequest) -> AskResponse:
         raise HTTPException(404, "По запросу ничего не найдено")
 
     return AskResponse(
-        answer=llm_stub(req.question, sources),
+        answer=llm_stub(req.question, sources, history=req.history),
         sources=sources,
         took_ms=int((time.monotonic() - t0) * 1000),
         llm=llm_flag(),
