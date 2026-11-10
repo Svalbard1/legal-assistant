@@ -168,6 +168,37 @@ def chunk_text(text: str, size: int = 500, overlap: int = 50):
 # === PART2 ===
 
 
+# --- Редакции документов (компаньоны в контексте) ---
+
+EDITION_MARK_RE = re.compile(r"\s*\(утратил силу\)|\s*ред\.?\s*\d{4}", re.IGNORECASE)
+
+
+def doc_base(name: str) -> str:
+    """'Регламент ... ред 2023 (утратил силу)' и '... ред 2025' -> один базовый титул."""
+    return EDITION_MARK_RE.sub("", name).strip(" ,;-")
+
+
+def expand_editions(top, context_k=3, extra=2):
+    """Поднимает в контекст чанки других редакций документов из головы выдачи.
+
+    Правило кейса «учёт даты и редакции»: если вопрос про событие в прошлом,
+    применялась старая редакция; LLM с обеими редакциями в контексте и датой
+    события выберет применимую. Компаньоны ищутся в результатах поиска за
+    пределами головы контекста (поиск идёт с SEARCH_K=8)."""
+    head = list(top[:context_k])
+    bases = {doc_base(c["file"]) for c, _s in head}
+    taken = {c["file"] for c, _s in head}
+    companions = []
+    for c, s in top[context_k:]:
+        if len(companions) >= extra:
+            break
+        if doc_base(c["file"]) in bases and c["file"] not in taken:
+            companions.append((c, s))
+            taken.add(c["file"])
+    # контекст = голова (топ-3) + компаньоны-редакции (<=2); дубликаты отброшены
+    return head + companions
+
+
 # --- HTTP к прокси платформы (ограниченные ретраи: 429/5xx/сеть) ---
 
 
@@ -408,6 +439,7 @@ def answer_one(question, search_fn, q_index):
         return REFUSAL
     if mode == "embeddings" and top[0][1] < REFUSAL_THRESHOLD:
         return REFUSAL  # лучший чанк слабый — содержательного контекста нет
+    top = expand_editions(top, context_k=3, extra=2)  # обе редакции в контекст
     answer = llm_answer(question, top)
     if answer:
         return answer
