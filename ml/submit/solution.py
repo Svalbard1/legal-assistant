@@ -399,10 +399,51 @@ def parse_history(question):
     return None
 
 
+def _join_overlapping(a: str, b: str, min_overlap: int = 25) -> str:
+    """Склейка a и b: если хвост a совпадает с началом b (overlap чанкинга) —
+    дубликат вырезается; иначе склейка через перевод строки."""
+    max_ov = min(len(a), len(b))
+    for ov in range(max_ov, min_overlap - 1, -1):
+        if a[-ov:] == b[:ov]:
+            return a + b[ov:]
+    return a + "\n" + b
+
+
+def assemble_context(top, max_chars: int = 4200) -> str:
+    """Собирает контекст для LLM: перекрывающиеся/соседние чанки одного документа
+    склеиваются в цельные пассажи (без дублей overlap), блоки нумеруются и идут
+    по убыванию релевантности; суммарная длина <= max_chars.
+    Гарантия: текст каждого исходного чанка входит в контекст как подстрока."""
+    by_file = {}
+    best = {}
+    for c, s in top:
+        f = c["file"]
+        by_file.setdefault(f, []).append((c.get("chunk_idx", 0), c["text"]))
+        best[f] = max(best.get(f, 0.0), s)
+    blocks = []
+    for fname, items in by_file.items():
+        items.sort(key=lambda x: x[0])
+        text = items[0][1]
+        for _idx, piece in items[1:]:
+            text = _join_overlapping(text, piece)
+        blocks.append((best[fname], fname, text))
+    blocks.sort(key=lambda x: -x[0])
+
+    out, used = [], 0
+    for n, (_score, fname, text) in enumerate(blocks, 1):
+        piece = f"[{n}] Документ: {fname}\n{text}".strip()
+        remaining = max_chars - used
+        if len(piece) > remaining:
+            if remaining < 200:
+                break
+            piece = piece[:remaining].rstrip()
+        out.append(piece)
+        used += len(piece) + 2
+    return "\n\n".join(out)
+
+
 def llm_answer(question, top, history_messages=None):
-    blocks = [f"[{i}] Документ: {chunk['file']}\n{chunk['text']}"
-              for i, (chunk, _score) in enumerate(top, 1)]
-    context = "\n\n".join(blocks)
+    context = assemble_context(top)
     history = list(history_messages or [])
     if history:
         final = (f"{question}\n\n---\nКонтекст из базы знаний:\n{context}\n\n"

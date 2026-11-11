@@ -172,6 +172,7 @@ def main():
 
     print(f"Загружаю {EMBED_MODEL}...")
     from ingest import chunk_text  # тот же чанкинг, что в solution.py
+    from submit.solution import assemble_context  # контекст-ассемблер
 
     model = SentenceTransformer(EMBED_MODEL)
     chunks = []
@@ -195,6 +196,7 @@ def main():
     hits_at = {k: 0 for k in ks}
     rr_total = 0.0
     hit_scores, refusal_scores, edition_rows, misses = [], [], [], []
+    stats_raw, stats_ctx, stats_cov = [], [], []
 
     for q_index, (qid, question) in enumerate(questions):
         g = golden.get(qid, {"type": "hit", "expect_doc_any": []})
@@ -206,6 +208,11 @@ def main():
             final = top[:args.context_k]
         else:
             final = expand_editions(top, args.context_k, args.companion_extra)
+        raw_chars = sum(len(c["text"]) + len(c["file"]) + 15 for c, _s in final)
+        ctx_text = assemble_context(final, max_chars=10**9)
+        stats_raw.append(raw_chars)
+        stats_ctx.append(len(ctx_text))
+        stats_cov.append(all(c["text"].strip() in ctx_text for c, _s in final))
 
         expect = [k.lower() for k in g.get("expect_doc_any", [])]
         rank, rank_strict = 0, 0
@@ -258,6 +265,18 @@ def main():
     if misses:
         summary["misses"] = misses
         print(f"  Промахи: {', '.join(misses)}")
+
+    if stats_raw:
+        avg_raw = sum(stats_raw) / len(stats_raw)
+        avg_ctx = sum(stats_ctx) / len(stats_ctx)
+        cov = sum(1 for x in stats_cov if x) / len(stats_cov)
+        print("\n=== КОНТЕКСТ-АССЕМБЛЕР ===")
+        print(f"  средний контекст: сырье {avg_raw:.0f} симв -> после склейки {avg_ctx:.0f} симв "
+              f"(экономия {(1 - avg_ctx / avg_raw) * 100:.0f}%)")
+        print(f"  покрытие исходных чанков: {sum(stats_cov)}/{len(stats_cov)}")
+        summary["context_raw_avg"] = round(avg_raw)
+        summary["context_asm_avg"] = round(avg_ctx)
+        summary["context_coverage"] = round(cov, 3)
 
     if refusal_scores:
         print(f"\n=== КАЛИБРОВКА REFUSAL_THRESHOLD (ловушек: {len(refusal_scores)}) ===")
