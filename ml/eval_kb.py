@@ -152,6 +152,8 @@ def main():
     ap.add_argument("--zip", default="data/kb/knowledge-base.zip")
     ap.add_argument("--questions", default="data/kb/demo_questions.csv")
     ap.add_argument("--golden", default="golden_kb.jsonl")
+    ap.add_argument("--extra-questions", default="trap_questions.csv",
+                    help="файл ловушек/контрольных вопросов (добавляется к demo)" )
     ap.add_argument("--top-k", type=int, default=8)  # глубина поиска
     ap.add_argument("--context-k", type=int, default=3)  # размер головы контекста
     ap.add_argument("--companion-extra", type=int, default=2)  # максимум чанков-компаньонов
@@ -160,6 +162,11 @@ def main():
     args = ap.parse_args()
 
     questions = load_questions(Path(args.questions))
+    trap_path = Path(args.extra_questions)
+    if trap_path.exists():
+        extra = load_questions(trap_path)
+        questions = questions + extra
+        print(f"[in] + ловушек/контроля: {len(extra)}", file=sys.stderr)
     golden = {g["id"]: g for g in load_golden(Path(args.golden))}
     print(f"База: {Path(args.zip).name} | вопросов: {len(questions)} | top_k={args.top_k}")
 
