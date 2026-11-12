@@ -1,3 +1,41 @@
+# === Секреты: никогда не коммитим ===
+.env
+.env.*
+!.env.example
 
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# === ML: локальные данные и модели ===
+ml/.qdrant/
+ml/data/**/*.pdf
+ml/data/**/*.docx
+ml/data/uploads/
+ml/models/
+
+# === Frontend (пригодится позже) ===
+node_modules/
+dist/
+build/
+
+# === IDE и система ===
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
 # === Материалы кейса: PDF не публикуем (репо публичный) ===
 docs/*.pdf
+
+# Сборки сабмита
+ml/submission_*.zip
+
+# Материалы организаторов (база знаний, сабмит-примеры) — в git не публикуем
+ml/data/kb/
