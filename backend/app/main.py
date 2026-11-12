@@ -4,7 +4,6 @@ import httpx
 from app.ml_client import ml_client
 from app.schemas import AskRequest, AskResponse
 
-
 app = FastAPI(
     title="Legal Assistant Backend",
     version="0.1.0",
@@ -22,28 +21,27 @@ async def ask(request: AskRequest):
         result = await ml_client.ask(
             question=request.question,
             top_k=request.top_k,
+            history=[
+                message.model_dump()
+                for message in request.history
+            ],
         )
-
         return AskResponse(**result)
 
     except httpx.HTTPStatusError as exc:
-        status_code = exc.response.status_code
-
-        if status_code == 422:
-            raise HTTPException(
-                status_code=422,
-                detail="ML service rejected the request",
+        try:
+            payload = exc.response.json()
+            detail = (
+                payload.get("detail", "ML service returned an error")
+                if isinstance(payload, dict)
+                else "ML service returned an error"
             )
-
-        if status_code == 404:
-            raise HTTPException(
-                status_code=404,
-                detail="No relevant documents found",
-            )
+        except ValueError:
+            detail = "ML service returned an error"
 
         raise HTTPException(
-            status_code=502,
-            detail="ML service returned an error",
+            status_code=exc.response.status_code,
+            detail=detail,
         )
 
     except httpx.TimeoutException:
@@ -51,6 +49,7 @@ async def ask(request: AskRequest):
             status_code=504,
             detail="ML service timed out",
         )
+
     except httpx.RequestError:
         raise HTTPException(
             status_code=502,
