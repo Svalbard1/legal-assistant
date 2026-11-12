@@ -26,3 +26,43 @@ jobs:
         run: ruff check .
       - name: Pytest (unit + API smoke)
         run: pytest tests -q
+
+  backend-tests:
+    # Информационная джоба до стабилизации (см. ревью PR #10); уберём continue-on-error позже
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: legal_assistant_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d legal_assistant_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: legal_assistant_test
+      ALEMBIC_DB_HOST: 127.0.0.1
+      ALEMBIC_DB_PORT: "5433"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install pytest==8.4.2 pytest-asyncio alembic
+      - name: Alembic upgrade head
+        run: alembic -c alembic.ini upgrade head
+      - name: Pytest (backend)
+        run: pytest backend/tests -q
+
