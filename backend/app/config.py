@@ -13,6 +13,10 @@ class Settings:
         "DATABASE_URL",
         "postgresql+asyncpg://postgres:postgres@localhost:5432/legal_assistant",
     )
+    ML_SERVICE_URL: str = os.getenv(
+        "ML_SERVICE_URL",
+        "http://localhost:8001",
+    )
 
 
 settings = Settings()
