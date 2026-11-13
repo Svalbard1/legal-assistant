@@ -46,14 +46,14 @@ def env(name, alts=(), default=None):
 
 BASE_URL = (env("LLM_BASE_URL", ("OPENAI_BASE_URL", "BASE_URL")) or "").rstrip("/")
 API_KEY = env("LLM_API_KEY", ("OPENAI_API_KEY",)) or ""
-GEN_MODEL = env("LLM_MODEL", ("OPENAI_MODEL", "GEN_MODEL")) or ""
+GEN_MODEL = env("LLM_MODEL", ("OPENAI_MODEL", "GEN_MODEL")) or "deepseek/deepseek-v4.1-flash"
 DATA_DIR = Path(env("DATA_DIR", default="data"))
 TEMPERATURE = float(env("TEMPERATURE", default="0.0") or 0.0)
 MAX_TOKENS = int(env("MAX_TOKENS", default="1024") or 1024)
 MAX_WORKERS = max(1, int(env("MAX_WORKERS", default="4") or 4))
-EMB_MODEL = env("EMB_MODEL", default="BAAI/bge-m3")
+EMB_MODEL = env("EMB_MODEL", default="baai/bge-m3")
 CHUNKER = env("CHUNKER", default="")  # настройка платформы; чанкер у нас собственный
-RERANKER_MODEL = env("RERANKER_MODEL", default="")
+RERANKER_MODEL = env("RERANKER_MODEL", default="cohere/rerank-5-fast")
 RERANKER_TOP_N = int(env("RERANKER_TOP_N", default="4") or 4)
 TOP_K = int(env("TOP_K", default="4") or 4)
 SEARCH_K = max(int(env("SEARCH_K", default="8") or 8), TOP_K)
@@ -224,23 +224,6 @@ def http_get_json(url, timeout=30, key=None):
 
 
 GEN_CFG = {"model": GEN_MODEL}
-
-
-def discover_gen_model():
-    """Если генеративная модель не задана env — спросить у прокси список моделей
-    (GET /models) и выбрать deepseek. Возвращает id или ''."""
-    if GEN_CFG["model"] or not BASE_URL:
-        return GEN_CFG["model"]
-    data = http_get_json(f"{BASE_URL}/models") or http_get_json(f"{BASE_URL}/v1/models")
-    ids = [str(it["id"]) for it in (data or {}).get("data", []) or []
-           if isinstance(it, dict) and it.get("id")]
-    if not ids:
-        return GEN_CFG["model"]
-    print(f"[models] прокси отдаёт: {ids}", file=sys.stderr)
-    pick = next((i for i in ids if "deepseek" in i.lower()), ids[0])
-    GEN_CFG["model"] = pick
-    print(f"[models] GEN_MODEL пуст — выбран {pick}", file=sys.stderr)
-    return pick
 
 
 def probe_generation():
@@ -608,7 +591,6 @@ def main():
 
     search_fn, _chunks = build_search(kb_docs, questions)
     if BASE_URL:
-        discover_gen_model()
         probe_generation()
 
     def task(item):
