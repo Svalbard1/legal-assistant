@@ -248,10 +248,9 @@ def probe_generation():
     /v1-фолбэк срабатывает внутри http_post_json и кэшируется для всех вопросов."""
     if not BASE_URL:
         return
-    payload = {"messages": [{"role": "user", "content": "Ответь одним словом: проверка связи"}],
+    payload = {"model": GEN_CFG["model"],
+               "messages": [{"role": "user", "content": "Ответь одним словом: проверка связи"}],
                "temperature": 0.0, "max_tokens": 16}
-    if GEN_CFG["model"]:
-        payload["model"] = GEN_CFG["model"]
     data = http_post_json(f"{BASE_URL}/chat/completions", payload, timeout=60)
     if data and data.get("choices"):
         print("[probe] генерация доступна", file=sys.stderr)
@@ -531,10 +530,9 @@ def llm_answer(question, top, history_messages=None, deadline=None):
         final = f"Вопрос сотрудника: {question}\n\n---\nКонтекст из базы знаний:\n{context}"
     messages = [{"role": "system", "content": SYSTEM_PROMPT}, *history,
                 {"role": "user", "content": final}]
-    payload = {"messages": messages, "temperature": TEMPERATURE, "max_tokens": MAX_TOKENS}
-    if GEN_CFG["model"]:
-        payload["model"] = GEN_CFG["model"]
-    timeout = 75
+    payload = {"model": GEN_CFG["model"], "messages": messages,
+               "temperature": TEMPERATURE, "max_tokens": MAX_TOKENS}
+    timeout = 120
     if deadline is not None:
         timeout = max(20, min(timeout, deadline - time.monotonic() - 20))
     data = http_post_json(f"{BASE_URL}/chat/completions", payload, timeout=timeout)
