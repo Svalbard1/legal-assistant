@@ -60,8 +60,9 @@ SEARCH_K = max(int(env("SEARCH_K", default="8") or 8), TOP_K)
 REFUSAL_THRESHOLD = float(env("REFUSAL_THRESHOLD", default="0.30") or 0.30)
 MAX_ANSWER_CHARS = 10000
 RETRIES = 3
-EMBED_KEY = env("EMBEDDER_API_KEY", ("EMBEDDINGS_API_KEY",)) or None   # фолбэк: общий API_KEY
-RERANK_KEY = env("RERANKER_API_KEY", ()) or None                        # фолбэк: общий API_KEY
+# ВАЖНО: для эмбеддингов/реранка/генерации — единый LLM_API_KEY (актуальный регламент).
+# EMBEDDER_API_KEY/RERANKER_API_KEY НЕ читаем: в свежем регламенте их нет, а legacy-значение
+# может дать 401 и молча уронить эмбеддинги в BM25 (урок сабмита 7.472).
 TIME_BUDGET = int(env("TIME_BUDGET_SEC", default="1080") or 1080)      # лимит платформы 20 мин — с запасом
 USE_EMBEDDINGS = BASE_URL != "" and os.environ.get("SOLUTION_DISABLE_EMBEDDINGS") != "1"
 QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
@@ -347,7 +348,7 @@ def embed(texts, batch=64):
         part = texts[start:start + batch]
         data = http_post_json(f"{BASE_URL}/embeddings",
                               {"model": EMB_MODEL, "input": part,
-                               "encoding_format": "float"}, key=EMBED_KEY)
+                               "encoding_format": "float"})
         if not data or "data" not in data:
             return None
         items = sorted(data["data"], key=lambda d: int(d.get("index", 0)))
@@ -361,7 +362,7 @@ def rerank(question, texts, top_n):
     data = http_post_json(f"{BASE_URL}/rerank", {
         "model": RERANKER_MODEL, "query": question,
         "documents": texts, "top_n": top_n,
-    }, key=RERANK_KEY)
+    })
     if not data:
         return None
     items = data.get("results", data.get("data", []))
@@ -387,6 +388,10 @@ def build_search(kb_docs, questions):
 
     if USE_EMBEDDINGS and chunks:
         chunk_vecs = embed([c["text"] for c in chunks])
+        if not chunk_vecs:
+            print("[index] эмбеддинги не прошли — повторная попытка через 5 с", file=sys.stderr)
+            time.sleep(5)
+            chunk_vecs = embed([c["text"] for c in chunks])
         query_vecs = embed([QUERY_PREFIX + q for _, q in questions]) if chunk_vecs else None
         if chunk_vecs and query_vecs:
             print("[index] режим: гибрид dense(bge-m3)+BM25 через RRF", file=sys.stderr)
