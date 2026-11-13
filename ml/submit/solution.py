@@ -52,6 +52,7 @@ TEMPERATURE = float(env("TEMPERATURE", default="0.0") or 0.0)
 MAX_TOKENS = int(env("MAX_TOKENS", default="1024") or 1024)
 MAX_WORKERS = max(1, int(env("MAX_WORKERS", default="4") or 4))
 EMB_MODEL = env("EMB_MODEL", default="BAAI/bge-m3")
+CHUNKER = env("CHUNKER", default="")  # настройка платформы; чанкер у нас собственный
 RERANKER_MODEL = env("RERANKER_MODEL", default="")
 RERANKER_TOP_N = int(env("RERANKER_TOP_N", default="4") or 4)
 TOP_K = int(env("TOP_K", default="4") or 4)
@@ -382,7 +383,7 @@ def build_search(kb_docs, questions):
     for fname, text in kb_docs:
         for idx, piece in enumerate(chunk_text(text)):
             chunks.append({"file": fname, "chunk_idx": idx, "text": piece})
-    print(f"[index] чанков: {len(chunks)}", file=sys.stderr)
+    print(f"[index] чанков: {len(chunks)}" + (f" (CHUNKER={CHUNKER} — игнорируем, свой чанкер)" if CHUNKER else ""), file=sys.stderr)
 
     if USE_EMBEDDINGS and chunks:
         chunk_vecs = embed([c["text"] for c in chunks])
