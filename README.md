@@ -51,7 +51,7 @@ ML и Qdrant — внутренние сервисы, наружу не торч
 2. Примени миграции Alembic:
 
    ```bash
-   docker compose run --rm --no-deps \
+   docker compose run --rm --no-deps --build \
      -e ALEMBIC_DB_HOST=postgres \
      -e ALEMBIC_DB_PORT=5432 \
      backend alembic -c /app/alembic.ini upgrade head
