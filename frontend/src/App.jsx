@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react'
-import { health, ask } from './api'
+import { health, ask, ingest } from './api'
 import './App.css'
 
 // СПИСОК ИСТОЧНИКОВ
@@ -65,7 +65,65 @@ function App() {
   const [question, setQuestion] = useState('')
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [uploadError, setUploadError] = useState('')
+async function handleFileChange(event) {
+  const file = event.target.files?.[0]
 
+  if (!file) return
+
+  setUploadError('')
+
+  const allowedExtensions = ['pdf', 'docx', 'txt', 'md']
+  const extension = file.name.split('.').pop().toLowerCase()
+
+  if (!allowedExtensions.includes(extension)) {
+    setUploadError('Поддерживаются только PDF, DOCX, TXT и MD.')
+    event.target.value = ''
+    return
+  }
+
+  const maxSize = 25 * 1024 * 1024
+
+  if (file.size > maxSize) {
+    setUploadError('Файл больше 25 МБ. Выберите файл меньшего размера.')
+    event.target.value = ''
+    return
+  }
+
+  if (isUploading) {
+    event.target.value = ''
+    return
+  }
+
+  setIsUploading(true)
+
+  try {
+    const result = await ingest(file)
+
+    setUploadedFiles((previousFiles) => [
+      {
+        filename: result.filename,
+        chunks: result.chunks,
+      },
+      ...previousFiles.filter(
+        (item) => item.filename !== result.filename
+      ),
+    ])
+  } catch (error) {
+    if (error.code === 400) {
+      setUploadError('Формат не поддерживается или в файле не найден текст.')
+    } else if (error.code === 413) {
+      setUploadError('Файл больше 25 МБ.')
+    } else {
+      setUploadError(error.message || 'Не удалось загрузить документ.')
+    }
+  } finally {
+    setIsUploading(false)
+    event.target.value = ''
+  }
+}
   // ПРОВЕРКА СОСТОЯНИЯ СЕРВЕРА
   useEffect(() => {
     health()
@@ -246,14 +304,52 @@ function App() {
             </div>
 
             {/* ЗАГРУЗКА ДОКУМЕНТА */}
-            <div className="upload-card">
-              <div className="upload-icon">▤</div>
-              <div className="upload-text">
-                <strong>Загрузите документ</strong>
-                <span>PDF, DOCX, TXT, MD · до 25 МБ</span>
-              </div>
-              <span className="upload-arrow">›</span>
+            <label
+              className={`upload-card ${isUploading ? 'uploading' : ''}`}
+              aria-disabled={isUploading}
+              style={{ cursor: isUploading ? 'wait' : 'pointer' }}
+            >
+              <input
+                type="file"
+                accept=".pdf,.docx,.txt,.md"
+                onChange={handleFileChange}
+                disabled={isUploading}
+                style={{ display: 'none' }}
+            />
+
+            <div className="upload-icon">
+              {isUploading ? '⏳' : '▤'}
             </div>
+
+            <div className="upload-text">
+              <strong>
+                {isUploading ? 'Обработка документа...' : 'Загрузите документ'}
+              </strong>
+
+               <span>
+                {isUploading
+                  ? 'Пожалуйста, подождите'
+                  : 'PDF, DOCX, TXT, MD · до 25 МБ'}
+              </span>
+            </div>
+
+            <span className="upload-arrow">
+              {isUploading ? '...' : '›'}
+            </span>
+          </label>
+
+          {uploadError && (
+            <div className="upload-error">
+              {uploadError}
+            </div>
+          )}
+
+{uploadedFiles.map((file, index) => (
+  <div className="uploaded-file" key={`${file.filename}-${index}`}>
+    <strong>✓ Проиндексировано: {file.filename}</strong>
+    <span>{file.chunks} фрагментов</span>
+  </div>
+))}
 
           </aside>
 

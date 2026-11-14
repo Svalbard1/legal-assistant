@@ -3,7 +3,10 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "
 
 async function request(path, options = {}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeout || 30000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    options.timeout ?? 30000
+  );
 
   try {
     const isFormData = options.body instanceof FormData;
@@ -27,6 +30,8 @@ async function request(path, options = {}) {
 
     if (!response.ok) {
       const messages = {
+        400: "Формат не поддерживается или в файле не найден текст.",
+        413: "Файл больше 25 МБ.",
         422: "Проверьте вопрос: от 3 до 2000 символов",
         404: "По запросу ничего не найдено — переформулируйте",
         503: "База знаний пуста — загрузите документы",
@@ -36,7 +41,11 @@ async function request(path, options = {}) {
 
       throw {
         code: response.status,
-        message: messages[response.status] || "Произошла ошибка. Попробуйте ещё раз.",
+        message:
+          messages[response.status] ||
+          (typeof data.detail === "string"
+            ? data.detail
+            : "Произошла ошибка. Попробуйте ещё раз."),
       };
     }
 
@@ -64,11 +73,13 @@ async function request(path, options = {}) {
 
 // Проверка состояния сервера
 export function health() {
-  return request("/health");
+  return request("/health", {
+    timeout: 5000,
+  });
 }
 
 // Отправка вопроса
-export function ask(question, top_k = 5) {
+export function ask(question, top_k = 3) {
   if (question.length < 3 || question.length > 2000) {
     return Promise.reject({
       code: 422,
@@ -79,6 +90,7 @@ export function ask(question, top_k = 5) {
   return request("/ask", {
     method: "POST",
     body: { question, top_k },
+    timeout: 90000,
   });
 }
 
@@ -90,6 +102,6 @@ export function ingest(file) {
   return request("/ingest", {
     method: "POST",
     body: formData,
-    timeout: 120000,
+    timeout: 180000,
   });
 }
