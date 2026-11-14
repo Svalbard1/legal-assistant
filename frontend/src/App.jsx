@@ -68,7 +68,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [uploadError, setUploadError] = useState('')
-async function handleFileChange(event) {
+  async function handleFileChange(event) {
   const file = event.target.files?.[0]
 
   if (!file) return
@@ -474,10 +474,19 @@ async function handleFileChange(event) {
               </div>
 
               <div className="question-suggestions">
-                <span>ϟ Примеры вопросов:</span>
-                <button>Какая неустойка за просрочку?</button>
-                <button>Сроки оплаты по договору?</button>
-                <button>Как расторгнуть договор?</button>
+               <span>ϟ Примеры вопросов:</span>
+
+                <button onClick={() => setQuestion('Какая неустойка за просрочку?')}>
+                  Какая неустойка за просрочку?
+                </button>
+
+                <button onClick={() => setQuestion('Сроки оплаты по договору?')}>
+                   Сроки оплаты по договору?
+                </button>
+
+                <button onClick={() => setQuestion('Как расторгнуть договор?')}>
+                  Как расторгнуть договор?
+                </button>
               </div>
 
             </div>
