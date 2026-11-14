@@ -11,4 +11,4 @@ CHUNK_SIZE = 500                      # символов на чанк
 CHUNK_OVERLAP = 50
 TOP_K = 3
 
-QUERY_PREFIX = "Represent this sentence for searching relevant passages: "  # инструкция bge-m3 для поисковых запросов (даёт +recall, проверено eval)
+QUERY_PREFIX = ""  # bge-m3 не требует e5-инструкцию: без неё recall@1 +11 п.п., MRR +0.065 (eval_kb 14.11; подтверждено платформой: +1.7 балла)
