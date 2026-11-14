@@ -4,16 +4,60 @@ import { health, ask, ingest } from './api'
 import './App.css'
 
 // СПИСОК ИСТОЧНИКОВ
-function SourcesList({ sources }) {
+function SourcesList({
+  sources,
+  messageIndex,
+  requestedSourceIndex,
+  requestId,
+}) {
   const [showAll, setShowAll] = useState(false)
+
+  useEffect(() => {
+    if (requestedSourceIndex === null || requestedSourceIndex === undefined) {
+      return
+    }
+
+    // Если источник скрыт, сначала показываем все источники
+    if (requestedSourceIndex >= 3 && !showAll) {
+      setShowAll(true)
+      return
+    }
+
+    const element = document.getElementById(
+      `source-${messageIndex}-${requestedSourceIndex}`
+    )
+
+    if (!element) return
+
+    // Раскрываем карточку источника
+    element.open = true
+
+    // Прокручиваем страницу к источнику
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+
+    // Подсвечиваем карточку
+    element.classList.add('source-card-highlighted')
+
+    const timeoutId = window.setTimeout(() => {
+      element.classList.remove('source-card-highlighted')
+    }, 2000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [requestedSourceIndex, requestId, showAll, messageIndex])
 
   if (!Array.isArray(sources) || sources.length === 0) {
     return null
   }
 
-  const sortedSources = [...sources].sort(
-    (a, b) => (b.score || 0) - (a.score || 0)
-  )
+  const sortedSources = sources
+    .map((source, originalIndex) => ({
+      ...source,
+      originalIndex,
+    }))
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
 
   const visibleSources = showAll
     ? sortedSources
@@ -25,18 +69,20 @@ function SourcesList({ sources }) {
         <strong>▤ Источники ({sources.length})</strong>
       </div>
 
-      {visibleSources.map((source, index) => (
-        <details className="source-card" key={index}>
+      {visibleSources.map((source) => (
+        <details
+          className="source-card"
+          id={`source-${messageIndex}-${source.originalIndex}`}
+          key={source.originalIndex}
+        >
           <summary>
             <div className="source-info">
               <strong>{source.file || 'Документ'}</strong>
-
               <small>
                 {source.page ? `Стр. ${source.page} · ` : ''}
                 Релевантность: {Math.round((source.score || 0) * 100)}%
               </small>
             </div>
-
             <span>⌄</span>
           </summary>
 
@@ -64,6 +110,12 @@ function App() {
   const [serviceStatus, setServiceStatus] = useState('checking')
   const [question, setQuestion] = useState('')
   const [messages, setMessages] = useState([])
+  const [sourceNavigation, setSourceNavigation] = useState({
+  messageIndex: null,
+  sourceIndex: null,
+  requestId: 0,
+  })
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState([])
@@ -176,7 +228,26 @@ function App() {
       setIsLoading(false)
     }
   }
+  function handleSourceClick(messageIndex, sourceIndex) {
+    setSourceNavigation((previous) => ({
+      messageIndex,
+      sourceIndex,
+      requestId: previous.requestId + 1,
+    }))
+  }
+    // КОПИРОВАНИЕ ОТВЕТА
+    async function handleCopy(text, index) {
+      try {
+        await navigator.clipboard.writeText(text)
+        setCopiedMessageIndex(index)
 
+        window.setTimeout(() => {
+          setCopiedMessageIndex(null)
+        }, 2000)
+       } catch (error) {
+         alert('Не удалось скопировать ответ. Попробуйте выделить текст вручную.')
+       }
+      }
   return (
     <div className="app">
 
@@ -403,7 +474,44 @@ function App() {
 
                       <div className="answer-card">
 
-                        <p>{message.content}</p>
+                        <p className="answer-text">
+                          {message.llm === 'stub' && Array.isArray(message.sources)
+                            ? message.content.split('\n').map((line, lineIndex, lines) => {
+                              const match = line.match(/^(\s*)(\d+)\.\s+(\[[^\]]+\])(.*)$/)
+                              const sourceIndex = match ? Number(match[2]) - 1 : -1
+
+                              return (
+                                <span key={lineIndex}>
+                                  {match && message.sources[sourceIndex] ? (
+                                    <>
+                                      {match[1]}
+                                      <button
+                                        type="button"
+                                        className="citation-link"
+                                        onClick={() => handleSourceClick(index, sourceIndex)}
+                                        title={`Перейти к источнику ${match[2]}`}
+                                      >
+                                        {match[2]}.
+                                      </button>
+                                      {' '}{match[3]}{match[4]}
+                                    </>
+                                  ) : (
+                                    line
+                                  )}
+                                  {lineIndex < lines.length - 1 ? '\n' : ''}
+                                </span>
+                              )
+                            })
+                          : message.content}
+                        </p>
+
+                        <button
+                          type="button"
+                          className="copy-answer-button"
+                          onClick={() => handleCopy(message.content, index)}
+                        >
+                          {copiedMessageIndex === index ? '✓ Скопировано' : 'Копировать ответ'}
+                         </button>
 
                         {/* ПОМЕТКА ДЕМО-РЕЖИМА */}
                         {message.llm === 'stub' && (
@@ -414,7 +522,16 @@ function App() {
                         )}
 
                         {/* ИСТОЧНИКИ ОТВЕТА */}
-                        <SourcesList sources={message.sources} />
+                        <SourcesList
+                          sources={message.sources}
+                          messageIndex={index}
+                          requestedSourceIndex={
+                            sourceNavigation.messageIndex === index
+                              ? sourceNavigation.sourceIndex
+                              : null
+                            }
+                            requestId={sourceNavigation.requestId}
+                          />
 
                         {/* ВРЕМЯ ОТВЕТА */}
                         {message.took_ms !== undefined && (

@@ -2796,3 +2796,52 @@ body {
   gap: 16px;
   font-size: 18px;
 }
+/* КНОПКА КОПИРОВАНИЯ ОТВЕТА */
+.copy-answer-button {
+  margin-top: 10px;
+  padding: 7px 12px;
+  border: 1px solid #d9dce3;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #444b57;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.copy-answer-button:hover {
+  background: #f1f3f6;
+}
+/* ТЕКСТ ОТВЕТА С СОХРАНЕНИЕМ ПЕРЕНОСОВ */
+.answer-text {
+  white-space: pre-wrap;
+}
+
+/* КЛИКАБЕЛЬНЫЙ НОМЕР ЦИТАТЫ */
+.citation-link {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.citation-link:hover {
+  color: #1d4ed8;
+}
+
+/* ПОДСВЕТКА ИСТОЧНИКА ПРИ ПЕРЕХОДЕ */
+.source-card {
+  scroll-margin-top: 100px;
+}
+
+.source-card-highlighted {
+  outline: 2px solid #3b82f6;
+  background: #eff6ff;
+  transition: background 0.3s ease, outline 0.3s ease;
+}
