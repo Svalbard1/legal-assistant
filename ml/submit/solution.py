@@ -59,7 +59,6 @@ SEARCH_K = max(int(env("SEARCH_K", default="8") or 8), TOP_K)
 REFUSAL_THRESHOLD = float(env("REFUSAL_THRESHOLD", default="0.30") or 0.30)
 MAX_ANSWER_CHARS = 10000
 RETRIES = 3
-TIME_BUDGET = int(env("TIME_BUDGET_SEC", default="1080") or 1080)
 USE_EMBEDDINGS = BASE_URL != "" and os.environ.get("SOLUTION_DISABLE_EMBEDDINGS") != "1"
 QUERY_PREFIX = ""  # bge-m3 не требует инструкцию: без неё recall@1 +11 п.п., MRR +0.065 (eval 14.11)
 
@@ -521,7 +520,6 @@ def answer_one(question, search_fn, q_index):
 
 def main():
     started = time.monotonic()
-    deadline = started + TIME_BUDGET
     questions_path = find_file("questions.csv")
     try:
         kb_zip = find_file("knowledge-base.zip", "kb.zip", "knowledge_base.zip")
