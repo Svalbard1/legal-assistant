@@ -3,7 +3,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
-
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy import select
@@ -34,6 +34,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ALLOWED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
 MAX_UPLOAD_MB = 25
