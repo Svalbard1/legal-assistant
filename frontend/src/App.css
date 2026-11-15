@@ -2852,3 +2852,51 @@ body {
   background: #eff6ff;
   transition: background 0.3s ease, outline 0.3s ease;
 }
+/* Выравнивание сообщений как в мессенджере */
+.message-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.message-row-user {
+  justify-content: flex-end;
+}
+
+.message-row-assistant {
+  justify-content: flex-start;
+}
+
+/* Сообщение пользователя справа */
+.message-row .user-message {
+  align-self: auto;
+  max-width: min(75%, 700px);
+  margin-left: auto;
+}
+
+/* Ответ помощника слева */
+.message-row .assistant-message {
+  width: 100%;
+  max-width: 900px;
+  min-width: 0;
+}
+
+.message-row .answer-card {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Адаптация для телефонов */
+@media (max-width: 600px) {
+  .message-row .user-message {
+    max-width: 90%;
+  }
+
+  .message-row .assistant-message {
+    gap: 8px;
+  }
+
+  .message-row .answer-card {
+    padding: 15px;
+  }
+}

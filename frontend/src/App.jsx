@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { health, ask, ingest } from './api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  health,
+  ask,
+  ingest,
+  getSessions,
+  getSessionMessages,
+} from './api'
 import './App.css'
 
 // СПИСОК ИСТОЧНИКОВ
@@ -22,9 +28,6 @@ function SourcesList({
       return
     }
 
-    if (requestedSourceIndex >= 3 && !showAll) {
-      setShowAll(true)
-    }
 
     const element = document.getElementById(
       `source-${messageIndex}-${requestedSourceIndex}`
@@ -62,10 +65,25 @@ function SourcesList({
     }))
     .sort((a, b) => (b.score || 0) - (a.score || 0))
 
-  const visibleSources = showShowAll
-    ? sortedSources
+  const visibleSources = showAll
+    ? [...sortedSources]
     : sortedSources.slice(0, 3)
 
+  if (
+    requestedSourceIndex !== null &&
+    requestedSourceIndex !== undefined &&
+    !visibleSources.some(
+      (source) => source.originalIndex === requestedSourceIndex
+    )
+  ) {
+    const requestedSource = sortedSources.find(
+      (source) => source.originalIndex === requestedSourceIndex
+    )
+
+    if (requestedSource) {
+      visibleSources.push(requestedSource)
+    }
+  }
   return (
     <div className="sources">
       <div className="sources-heading">
@@ -98,7 +116,7 @@ function SourcesList({
           className="show-sources"
           onClick={() => setShowAll(!showAll)}
         >
-          {ShowALL
+          {showAll
             ? 'Скрыть'
             : `Показать все (${sources.length})`}
         </button>
@@ -112,6 +130,9 @@ function App() {
   const [question, setQuestion] = useState('')
   const questionInputRef = useRef(null)
   const [messages, setMessages] = useState([])
+  const [sessions, setSessions] = useState([])
+  const [sessionId, setSessionId] = useState(null)
+  const [activeSessionTitle, setActiveSessionTitle] = useState('Новый чат')
   const [sourceNavigation, setSourceNavigation] = useState({
   messageIndex: null,
   sourceIndex: null,
@@ -122,6 +143,61 @@ function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [uploadError, setUploadError] = useState('')
+
+    // Загрузка списка диалогов
+  const loadSessions = useCallback(async (selectedId = sessionId) => {
+    try {
+      const result = await getSessions()
+      const loadedSessions = result.sessions || []
+
+      setSessions(loadedSessions)
+
+      const activeSession = loadedSessions.find(
+        (session) => session.id === selectedId
+      )
+
+      if (activeSession) {
+        setActiveSessionTitle(activeSession.title || 'Новый чат')
+      }
+    } catch (error) {
+      console.error('Не удалось загрузить историю:', error)
+    }
+  }, [sessionId])
+
+  // Создание нового диалога
+  function handleNewChat() {
+    setSessionId(null)
+    setActiveSessionTitle('Новый чат')
+    setMessages([])
+    setQuestion('')
+    setSourceNavigation({
+      messageIndex: null,
+      sourceIndex: null,
+      requestId: 0,
+    })
+  }
+
+  // Открытие существующего диалога
+  async function handleSelectChat(session) {
+    if (isLoading) return
+
+    try {
+      const result = await getSessionMessages(session.id)
+
+      setSessionId(session.id)
+      setActiveSessionTitle(session.title || 'Новый чат')
+      setMessages(result.messages || [])
+      setQuestion('')
+      setSourceNavigation({
+       messageIndex: null,
+       sourceIndex: null,
+       requestId: 0,
+      })
+    } catch (error) {
+      alert(error.message || 'Не удалось открыть диалог.')
+    }
+  }
+
   async function handleFileChange(event) {
   const file = event.target.files?.[0]
 
@@ -183,7 +259,9 @@ useEffect(() => {
   health()
     .then(() => setServiceStatus('online'))
     .catch(() => setServiceStatus('offline'))
-}, [])
+
+  loadSessions(null)
+}, [loadSessions])
 
   // ОТПРАВКА ВОПРОСА
   async function handleSend() {
@@ -205,7 +283,12 @@ useEffect(() => {
     setIsLoading(true)
 
     try {
-      const result = await ask(text)
+      const result = await ask(text, sessionId)
+
+      if (result.session_id) {
+        setSessionId(result.session_id)
+        await loadSessions(result.session_id)
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -263,8 +346,13 @@ useEffect(() => {
       </div>
 
         <nav className="sidebar-nav">
-          <button className="new-chat">
-            <span>＋</span> Новый чат
+          <button
+            className="new-chat"
+            onClick={handleNewChat}
+            disabled={isLoading}
+          >
+            <span>＋</span>
+            Новый чат
           </button>
 
         <button className="nav-item">
@@ -346,35 +434,30 @@ useEffect(() => {
             </div>
 
             <div className="chat-list">
+              {sessions.map((session) => (
+                <button
+                  key={session.id}
+                  className={`chat-item ${
+                    session.id === sessionId ? 'active' : ''
+                  }`}
+                  onClick={() => handleSelectChat(session)}
+                  disabled={isLoading}
+                >
+                  <span className="chat-icon">▤</span>
 
-              <button className="chat-item active">
-                <span className="chat-icon">▤</span>
-                <span className="chat-info">
-                  <strong>Неустойка по договору</strong>
-                  <small>В договоре предусмотрена...</small>
-                </span>
-                <span className="chat-time">14:32</span>
-              </button>
+                  <span className="chat-info">
+                    <strong>{session.title || 'Новый диалог'}</strong>
+                    <small>Открыть переписку</small>
+                  </span>
+                </button>
+                ))}
 
-              <button className="chat-item">
-                <span className="chat-icon">▤</span>
-                <span className="chat-info">
-                  <strong>Сроки оплаты</strong>
-                  <small>Оплата производится в течение...</small>
-                </span>
-                <span className="chat-time">Вчера</span>
-              </button>
-
-              <button className="chat-item">
-                <span className="chat-icon">▤</span>
-                <span className="chat-info">
-                  <strong>Ответственность сторон</strong>
-                  <small>Стороны несут ответственность...</small>
-                </span>
-                <span className="chat-time">Вчера</span>
-              </button>
-
-            </div>
+                {sessions.length === 0 && (
+                  <p className="empty-chat-list">
+                    Пока нет сохранённых диалогов
+                  </p>
+                )}
+              </div>
 
             {/* ЗАГРУЗКА ДОКУМЕНТА */}
             <label
@@ -432,7 +515,7 @@ useEffect(() => {
             <header className="conversation-header">
               <div className="conversation-title">
                 <div className="conversation-icon">⚖</div>
-                <h2>Неустойка по договору</h2>
+                <h2>{activeSessionTitle}</h2>
                 <button className="edit-title-button" aria-label="Изменить название чата">
                   ✎
                 </button>
@@ -461,7 +544,14 @@ useEffect(() => {
 
               {/* ИСТОРИЯ СООБЩЕНИЙ */}
               {messages.map((message, index) => (
-                <div key={index}>
+                <div
+                  key={index}
+                  className={`message-row ${
+                    message.role === 'user'
+                      ? 'message-row-user'
+                      : 'message-row-assistant'
+                  }`}
+                    >
 
                   {message.role === 'user' ? (
 
