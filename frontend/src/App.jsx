@@ -145,7 +145,7 @@ function App() {
   const [uploadError, setUploadError] = useState('')
 
     // Загрузка списка диалогов
-  const loadSessions = useCallback(async (selectedId = sessionId) => {
+  const loadSessions = useCallback(async (selectedId = null) => {
     try {
       const result = await getSessions()
       const loadedSessions = result.sessions || []
@@ -162,7 +162,7 @@ function App() {
     } catch (error) {
       console.error('Не удалось загрузить историю:', error)
     }
-  }, [sessionId])
+  }, [])
 
   // Создание нового диалога
   function handleNewChat() {
@@ -254,12 +254,15 @@ function App() {
     event.target.value = ''
   }
 }
-  // ПРОВЕРКА СОСТОЯНИЯ СЕРВЕРА
+// ПРОВЕРКА СОСТОЯНИЯ СЕРВЕРА
 useEffect(() => {
   health()
     .then(() => setServiceStatus('online'))
     .catch(() => setServiceStatus('offline'))
+}, [])
 
+// ПЕРВИЧНАЯ ЗАГРУЗКА ИСТОРИИ ЧАТОВ
+useEffect(() => {
   loadSessions(null)
 }, [loadSessions])
 
