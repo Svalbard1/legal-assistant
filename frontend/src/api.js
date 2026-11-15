@@ -1,22 +1,25 @@
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+).replace(/\/+$/, '')
 
-async function request(path, options = {}) {
-  const controller = new AbortController();
+
+async function request(baseUrl, path, options = {}) {
+  const controller = new AbortController()
   const timeout = setTimeout(
     () => controller.abort(),
     options.timeout ?? 30000
-  );
+  )
 
   try {
-    const isFormData = options.body instanceof FormData;
+    const isFormData = options.body instanceof FormData
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: options.method || "GET",
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: options.method || 'GET',
       headers: isFormData
         ? undefined
         : options.body
-          ? { "Content-Type": "application/json" }
+          ? { 'Content-Type': 'application/json' }
           : undefined,
       body: isFormData
         ? options.body
@@ -24,84 +27,104 @@ async function request(path, options = {}) {
           ? JSON.stringify(options.body)
           : undefined,
       signal: controller.signal,
-    });
+    })
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}))
 
     if (!response.ok) {
       const messages = {
-        400: "Формат не поддерживается или в файле не найден текст.",
-        413: "Файл больше 25 МБ.",
-        422: "Проверьте вопрос: от 3 до 2000 символов",
-        404: "По запросу ничего не найдено — переформулируйте",
-        503: "База знаний пуста — загрузите документы",
-        502: "Сервис временно недоступен, попробуйте позже",
-        504: "Сервис временно недоступен, попробуйте позже",
-      };
+        400: 'Формат не поддерживается или в файле не найден текст.',
+        413: 'Файл больше 25 МБ.',
+        422: 'Проверьте вопрос: от 3 до 2000 символов.',
+        404: options.notFoundMessage || 'По запросу ничего не найдено — переформулируйте.',
+        503: 'База знаний пуста — загрузите документы.',
+        502: 'Сервис временно недоступен, попробуйте позже.',
+        504: 'Сервис временно недоступен, попробуйте позже.',
+      }
 
       throw {
         code: response.status,
         message:
           messages[response.status] ||
-          (typeof data.detail === "string"
+          (typeof data.detail === 'string'
             ? data.detail
-            : "Произошла ошибка. Попробуйте ещё раз."),
-      };
+            : 'Произошла ошибка. Попробуйте ещё раз.'),
+      }
     }
 
-    return data;
+    return data
   } catch (error) {
     if (error.code && error.message) {
-      throw error;
+      throw error
     }
 
-    if (error.name === "AbortError") {
+    if (error.name === 'AbortError') {
       throw {
-        code: "TIMEOUT",
-        message: "Сервер долго не отвечает. Попробуйте ещё раз.",
-      };
+        code: 'TIMEOUT',
+        message: 'Сервер долго не отвечает. Попробуйте ещё раз.',
+      }
     }
 
     throw {
-      code: "NETWORK_ERROR",
-      message: "Не удалось связаться с сервером. Проверьте подключение.",
-    };
+      code: 'NETWORK_ERROR',
+      message: 'Не удалось связаться с сервером. Проверьте подключение.',
+    }
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timeout)
   }
 }
 
-// Проверка состояния сервера
+// Проверка Backend
 export function health() {
-  return request("/health", {
+  return request(API_BASE_URL, '/health', {
     timeout: 5000,
-  });
+  })
 }
 
-// Отправка вопроса
-export function ask(question, top_k = 3) {
+// Отправка вопроса с поддержкой истории диалога
+export function ask(question, sessionId = null, top_k = 3) {
   if (question.length < 3 || question.length > 2000) {
     return Promise.reject({
       code: 422,
-      message: "Проверьте вопрос: от 3 до 2000 символов",
-    });
+      message: 'Проверьте вопрос: от 3 до 2000 символов.',
+    })
   }
 
-  return request("/ask", {
-    method: "POST",
-    body: { question, top_k },
-    timeout: 90000,
-  });
+  return request(API_BASE_URL, '/api/ask', {
+    method: 'POST',
+    body: {
+      question,
+      top_k,
+      session_id: sessionId,
+    },
+    timeout: 95000,
+  })
 }
 
-// Загрузка документа
-export function ingest(file) {
-  const formData = new FormData();
-  formData.append("file", file);
+// Получение списка диалогов
+export function getSessions() {
+  return request(API_BASE_URL, '/api/sessions')
+}
 
-  return request("/ingest", {
-    method: "POST",
+// Получение сообщений выбранного диалога
+export function getSessionMessages(sessionId) {
+  return request(
+    API_BASE_URL,
+    `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
+    {
+      notFoundMessage: 'Чат не найден или больше недоступен.',
+    }
+  )
+}
+
+// Загрузка документов через Backend.
+export async function ingest(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return request(API_BASE_URL, '/api/ingest', {
+    method: 'POST',
     body: formData,
-    timeout: 180000,
-  });
+    timeout: 185000,
+  })
 }
