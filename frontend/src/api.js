@@ -36,7 +36,7 @@ async function request(baseUrl, path, options = {}) {
         400: 'Формат не поддерживается или в файле не найден текст.',
         413: 'Файл больше 25 МБ.',
         422: 'Проверьте вопрос: от 3 до 2000 символов.',
-        404: 'По запросу ничего не найдено — переформулируйте.',
+        404: options.notFoundMessage || 'По запросу ничего не найдено — переформулируйте.',
         503: 'База знаний пуста — загрузите документы.',
         502: 'Сервис временно недоступен, попробуйте позже.',
         504: 'Сервис временно недоступен, попробуйте позже.',
@@ -97,7 +97,7 @@ export function ask(question, sessionId = null, top_k = 3) {
       top_k,
       session_id: sessionId,
     },
-    timeout: 90000,
+    timeout: 95000,
   })
 }
 
@@ -110,7 +110,10 @@ export function getSessions() {
 export function getSessionMessages(sessionId) {
   return request(
     API_BASE_URL,
-    `/api/sessions/${encodeURIComponent(sessionId)}/messages`
+    `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
+    {
+      notFoundMessage: 'Чат не найден или больше недоступен.',
+    }
   )
 }
 
@@ -122,6 +125,6 @@ export async function ingest(file) {
   return request(API_BASE_URL, '/api/ingest', {
     method: 'POST',
     body: formData,
-    timeout: 180000,
+    timeout: 185000,
   })
 }
