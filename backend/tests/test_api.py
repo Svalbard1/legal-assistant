@@ -201,6 +201,7 @@ async def test_ask_ml_timeout(client, monkeypatch):
     )
 
     assert response.status_code == 504
+    assert response.json() == {"detail": "ML service timed out"}
 
 
 @pytest.mark.asyncio
@@ -308,3 +309,38 @@ async def test_get_messages_unknown_session(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Chat session not found"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "detail"),
+    [
+        (404, "Документы не найдены"),
+        (422, "ML rejected the request"),
+    ],
+)
+async def test_ask_ml_error_status_passthrough(
+    client, monkeypatch, status_code, detail
+):
+    async def fake_ask(**kwargs):
+        request = httpx.Request("POST", "http://localhost:8001/ask")
+        response = httpx.Response(
+            status_code,
+            json={"detail": detail},
+            request=request,
+        )
+        raise httpx.HTTPStatusError(
+            "ML error",
+            request=request,
+            response=response,
+        )
+
+    monkeypatch.setattr("app.main.ml_client.ask", fake_ask)
+
+    response = await client.post(
+        "/api/ask",
+        json={"question": "Как взыскать неустойку?"},
+    )
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
