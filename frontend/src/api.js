@@ -3,9 +3,6 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 ).replace(/\/+$/, '')
 
-const ML_API_BASE_URL = (
-  import.meta.env.VITE_ML_API_BASE_URL || 'http://localhost:8001'
-).replace(/\/+$/, '')
 
 async function request(baseUrl, path, options = {}) {
   const controller = new AbortController()
@@ -117,13 +114,12 @@ export function getSessionMessages(sessionId) {
   )
 }
 
-// Временная прямая загрузка в ML.
-// После появления маршрута загрузки в Backend переключим её туда.
-export function ingest(file) {
+// Загрузка документов через Backend.
+export async function ingest(file) {
   const formData = new FormData()
   formData.append('file', file)
 
-  return request(ML_API_BASE_URL, '/ingest', {
+  return request(API_BASE_URL, '/api/ingest', {
     method: 'POST',
     body: formData,
     timeout: 180000,
