@@ -1,4 +1,4 @@
-
+﻿
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 ).replace(/\/+$/, '')
@@ -127,4 +127,9 @@ export async function ingest(file) {
     body: formData,
     timeout: 185000,
   })
+}
+
+// Получение списка загруженных документов
+export function getDocuments() {
+  return request(API_BASE_URL, '/api/documents')
 }

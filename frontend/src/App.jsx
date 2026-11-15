@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   health,
   ask,
   ingest,
   getSessions,
   getSessionMessages,
+  getDocuments,
 } from './api'
 import './App.css'
 
@@ -142,7 +143,8 @@ function App() {
   const [copiedMessageIndex, setCopiedMessageIndex] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [documents, setDocuments] = useState([])
+  const [documentsError, setDocumentsError] = useState('')
   const [uploadError, setUploadError] = useState('')
 
     // Загрузка списка диалогов
@@ -164,6 +166,20 @@ function App() {
       console.error('Не удалось загрузить историю:', error)
     }
   }, [])
+
+  // Загрузка документов из Backend
+const loadDocuments = useCallback(async () => {
+  try {
+    const result = await getDocuments()
+    setDocuments(
+      Array.isArray(result.documents) ? result.documents : []
+    )
+    setDocumentsError('')
+  } catch (error) {
+    console.error('Не удалось загрузить документы:', error)
+    setDocumentsError('Не удалось загрузить список документов.')
+  }
+}, [])
 
   // Создание нового диалога
   function handleNewChat() {
@@ -231,17 +247,9 @@ function App() {
   setIsUploading(true)
 
   try {
-    const result = await ingest(file)
+    await ingest(file)
 
-    setUploadedFiles((previousFiles) => [
-      {
-        filename: result.filename,
-        chunks: result.chunks,
-      },
-      ...previousFiles.filter(
-        (item) => item.filename !== result.filename
-      ),
-    ])
+    await loadDocuments()
   } catch (error) {
     if (error.code === 400) {
       setUploadError('Формат не поддерживается или в файле не найден текст.')
@@ -261,6 +269,24 @@ useEffect(() => {
     .then(() => setServiceStatus('online'))
     .catch(() => setServiceStatus('offline'))
 }, [])
+
+// Первичная загрузка документов
+useEffect(() => {
+  loadDocuments()
+}, [loadDocuments])
+
+// Обновление статусов документов во время индексации
+useEffect(() => {
+  if (!documents.some((document) => document.status === 'processing')) {
+    return
+  }
+
+  const timer = window.setTimeout(() => {
+    loadDocuments()
+  }, 2500)
+
+  return () => window.clearTimeout(timer)
+}, [documents, loadDocuments])
 
 // ПЕРВИЧНАЯ ЗАГРУЗКА ИСТОРИИ ЧАТОВ
 useEffect(() => {
@@ -511,10 +537,37 @@ useEffect(() => {
             </div>
           )}
 
-{uploadedFiles.map((file, index) => (
-  <div className="uploaded-file" key={`${file.filename}-${index}`}>
-    <strong>✓ Проиндексировано: {file.filename}</strong>
-    <span>{file.chunks} фрагментов</span>
+{documentsError && (
+  <div className="upload-error">{documentsError}</div>
+)}
+
+{documents.map((file) => (
+  <div className="uploaded-file" key={file.id}>
+    <strong>{file.filename}</strong>
+
+    <span>
+      {file.status === 'processing' && '⏳ Обрабатывается'}
+      {file.status === 'indexed' && '✓ Проиндексирован'}
+      {file.status === 'failed' && '✕ Ошибка индексации'}
+    </span>
+
+    <span>
+      {file.content_type || 'Тип не указан'}
+      {' · '}
+      {file.size_bytes < 1024 * 1024
+        ? `${Math.round(file.size_bytes / 1024)} КБ`
+        : `${(file.size_bytes / (1024 * 1024)).toFixed(1)} МБ`}
+    </span>
+
+    <span>
+      {file.created_at
+        ? new Date(file.created_at).toLocaleString('ru-RU')
+        : 'Дата не указана'}
+    </span>
+
+    {file.status === 'indexed' && (
+      <span>{file.chunks || 0} фрагментов</span>
+    )}
   </div>
 ))}
 
