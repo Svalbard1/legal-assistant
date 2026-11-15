@@ -7,7 +7,7 @@ QDRANT_PATH = ML_DIR / ".qdrant"      # локальное хранилище (�
 
 EMBED_MODEL = "BAAI/bge-m3"           # 1024-мерные эмбеддинги
 COLLECTION = "legal_docs"
-CHUNK_SIZE = 500                      # символов на чанк
+CHUNK_SIZE = 400                      # символов на чанк (eval: recall@3 0.926 = baseline, MRR 0.865 > 0.844; на golden_kb recall@3 1.0)
 CHUNK_OVERLAP = 50
 TOP_K = 3
 

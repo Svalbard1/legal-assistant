@@ -1,9 +1,15 @@
-
-import { useEffect, useState } from 'react'
-import { health, ask, ingest } from './api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  health,
+  ask,
+  ingest,
+  getSessions,
+  getSessionMessages,
+} from './api'
 import './App.css'
 
 // СПИСОК ИСТОЧНИКОВ
+
 function SourcesList({
   sources,
   messageIndex,
@@ -12,16 +18,16 @@ function SourcesList({
 }) {
   const [showAll, setShowAll] = useState(false)
 
+
+
   useEffect(() => {
-    if (requestedSourceIndex === null || requestedSourceIndex === undefined) {
+    if (
+      requestedSourceIndex === null ||
+      requestedSourceIndex === undefined
+    ) {
       return
     }
 
-    // Если источник скрыт, сначала показываем все источники
-    if (requestedSourceIndex >= 3 && !showAll) {
-      setShowAll(true)
-      return
-    }
 
     const element = document.getElementById(
       `source-${messageIndex}-${requestedSourceIndex}`
@@ -46,7 +52,7 @@ function SourcesList({
     }, 2000)
 
     return () => window.clearTimeout(timeoutId)
-  }, [requestedSourceIndex, requestId, showAll, messageIndex])
+  }, [requestedSourceIndex, requestId, messageIndex])
 
   if (!Array.isArray(sources) || sources.length === 0) {
     return null
@@ -60,9 +66,24 @@ function SourcesList({
     .sort((a, b) => (b.score || 0) - (a.score || 0))
 
   const visibleSources = showAll
-    ? sortedSources
+    ? [...sortedSources]
     : sortedSources.slice(0, 3)
 
+  if (
+    requestedSourceIndex !== null &&
+    requestedSourceIndex !== undefined &&
+    !visibleSources.some(
+      (source) => source.originalIndex === requestedSourceIndex
+    )
+  ) {
+    const requestedSource = sortedSources.find(
+      (source) => source.originalIndex === requestedSourceIndex
+    )
+
+    if (requestedSource) {
+      visibleSources.push(requestedSource)
+    }
+  }
   return (
     <div className="sources">
       <div className="sources-heading">
@@ -86,9 +107,7 @@ function SourcesList({
             <span>⌄</span>
           </summary>
 
-          <div className="source-text">
-            {source.text}
-          </div>
+          <div className="source-text">{source.text}</div>
         </details>
       ))}
 
@@ -109,7 +128,11 @@ function SourcesList({
 function App() {
   const [serviceStatus, setServiceStatus] = useState('checking')
   const [question, setQuestion] = useState('')
+  const questionInputRef = useRef(null)
   const [messages, setMessages] = useState([])
+  const [sessions, setSessions] = useState([])
+  const [sessionId, setSessionId] = useState(null)
+  const [activeSessionTitle, setActiveSessionTitle] = useState('Новый чат')
   const [sourceNavigation, setSourceNavigation] = useState({
   messageIndex: null,
   sourceIndex: null,
@@ -120,6 +143,61 @@ function App() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [uploadError, setUploadError] = useState('')
+
+    // Загрузка списка диалогов
+  const loadSessions = useCallback(async (selectedId = null) => {
+    try {
+      const result = await getSessions()
+      const loadedSessions = result.sessions || []
+
+      setSessions(loadedSessions)
+
+      const activeSession = loadedSessions.find(
+        (session) => session.id === selectedId
+      )
+
+      if (activeSession) {
+        setActiveSessionTitle(activeSession.title || 'Новый чат')
+      }
+    } catch (error) {
+      console.error('Не удалось загрузить историю:', error)
+    }
+  }, [])
+
+  // Создание нового диалога
+  function handleNewChat() {
+    setSessionId(null)
+    setActiveSessionTitle('Новый чат')
+    setMessages([])
+    setQuestion('')
+    setSourceNavigation({
+      messageIndex: null,
+      sourceIndex: null,
+      requestId: 0,
+    })
+  }
+
+  // Открытие существующего диалога
+  async function handleSelectChat(session) {
+    if (isLoading) return
+
+    try {
+      const result = await getSessionMessages(session.id)
+
+      setSessionId(session.id)
+      setActiveSessionTitle(session.title || 'Новый чат')
+      setMessages(result.messages || [])
+      setQuestion('')
+      setSourceNavigation({
+       messageIndex: null,
+       sourceIndex: null,
+       requestId: 0,
+      })
+    } catch (error) {
+      alert(error.message || 'Не удалось открыть диалог.')
+    }
+  }
+
   async function handleFileChange(event) {
   const file = event.target.files?.[0]
 
@@ -176,12 +254,17 @@ function App() {
     event.target.value = ''
   }
 }
-  // ПРОВЕРКА СОСТОЯНИЯ СЕРВЕРА
-  useEffect(() => {
-    health()
-      .then(() => setServiceStatus('online'))
-      .catch(() => setServiceStatus('offline'))
-  }, [])
+// ПРОВЕРКА СОСТОЯНИЯ СЕРВЕРА
+useEffect(() => {
+  health()
+    .then(() => setServiceStatus('online'))
+    .catch(() => setServiceStatus('offline'))
+}, [])
+
+// ПЕРВИЧНАЯ ЗАГРУЗКА ИСТОРИИ ЧАТОВ
+useEffect(() => {
+  loadSessions(null)
+}, [loadSessions])
 
   // ОТПРАВКА ВОПРОСА
   async function handleSend() {
@@ -203,7 +286,12 @@ function App() {
     setIsLoading(true)
 
     try {
-      const result = await ask(text)
+      const result = await ask(text, sessionId)
+
+      if (result.session_id) {
+        setSessionId(result.session_id)
+        await loadSessions(result.session_id)
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -244,7 +332,7 @@ function App() {
         window.setTimeout(() => {
           setCopiedMessageIndex(null)
         }, 2000)
-       } catch (error) {
+       } catch {
          alert('Не удалось скопировать ответ. Попробуйте выделить текст вручную.')
        }
       }
@@ -261,8 +349,13 @@ function App() {
       </div>
 
         <nav className="sidebar-nav">
-          <button className="new-chat">
-            <span>＋</span> Новый чат
+          <button
+            className="new-chat"
+            onClick={handleNewChat}
+            disabled={isLoading}
+          >
+            <span>＋</span>
+            Новый чат
           </button>
 
         <button className="nav-item">
@@ -344,35 +437,30 @@ function App() {
             </div>
 
             <div className="chat-list">
+              {sessions.map((session) => (
+                <button
+                  key={session.id}
+                  className={`chat-item ${
+                    session.id === sessionId ? 'active' : ''
+                  }`}
+                  onClick={() => handleSelectChat(session)}
+                  disabled={isLoading}
+                >
+                  <span className="chat-icon">▤</span>
 
-              <button className="chat-item active">
-                <span className="chat-icon">▤</span>
-                <span className="chat-info">
-                  <strong>Неустойка по договору</strong>
-                  <small>В договоре предусмотрена...</small>
-                </span>
-                <span className="chat-time">14:32</span>
-              </button>
+                  <span className="chat-info">
+                    <strong>{session.title || 'Новый диалог'}</strong>
+                    <small>Открыть переписку</small>
+                  </span>
+                </button>
+                ))}
 
-              <button className="chat-item">
-                <span className="chat-icon">▤</span>
-                <span className="chat-info">
-                  <strong>Сроки оплаты</strong>
-                  <small>Оплата производится в течение...</small>
-                </span>
-                <span className="chat-time">Вчера</span>
-              </button>
-
-              <button className="chat-item">
-                <span className="chat-icon">▤</span>
-                <span className="chat-info">
-                  <strong>Ответственность сторон</strong>
-                  <small>Стороны несут ответственность...</small>
-                </span>
-                <span className="chat-time">Вчера</span>
-              </button>
-
-            </div>
+                {sessions.length === 0 && (
+                  <p className="empty-chat-list">
+                    Пока нет сохранённых диалогов
+                  </p>
+                )}
+              </div>
 
             {/* ЗАГРУЗКА ДОКУМЕНТА */}
             <label
@@ -430,7 +518,7 @@ function App() {
             <header className="conversation-header">
               <div className="conversation-title">
                 <div className="conversation-icon">⚖</div>
-                <h2>Неустойка по договору</h2>
+                <h2>{activeSessionTitle}</h2>
                 <button className="edit-title-button" aria-label="Изменить название чата">
                   ✎
                 </button>
@@ -459,7 +547,14 @@ function App() {
 
               {/* ИСТОРИЯ СООБЩЕНИЙ */}
               {messages.map((message, index) => (
-                <div key={index}>
+                <div
+                  key={index}
+                  className={`message-row ${
+                    message.role === 'user'
+                      ? 'message-row-user'
+                      : 'message-row-assistant'
+                  }`}
+                    >
 
                   {message.role === 'user' ? (
 
@@ -565,46 +660,63 @@ function App() {
             {/* ПОЛЕ ВВОДА И ПРИМЕРЫ ВОПРОСОВ */}
             <div className="conversation-bottom">
 
-              <div className="message-input">
-                <span>⌁</span>
+<div className="message-input">
+  <span>⌁</span>
 
-                <input
-                  type="text"
-                  placeholder="Введите ваш юридический вопрос..."
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      handleSend()
-                    }
-                  }}
-                  disabled={isLoading}
-                />
+  <textarea
+    ref={questionInputRef}
+    rows={1}
+    placeholder="Введите ваш юридический вопрос..."
+    value={question}
+    onChange={(event) => setQuestion(event.target.value)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        handleSend()
+      }
+    }}
+    disabled={isLoading}
+  />
 
-                <button
-                  className="send-button"
-                  onClick={handleSend}
-                  disabled={isLoading || !question.trim()}
-                >
-                  ➤
-                </button>
-              </div>
+  <button
+    className="send-button"
+    onClick={handleSend}
+    disabled={isLoading || !question.trim()}
+  >
+    ➤
+  </button>
+</div>
 
               <div className="question-suggestions">
-               <span>ϟ Примеры вопросов:</span>
+  <span>ϟ Примеры вопросов:</span>
 
-                <button onClick={() => setQuestion('Какая неустойка за просрочку?')}>
-                  Какая неустойка за просрочку?
-                </button>
+  <button
+    onClick={() => {
+      setQuestion('Какая неустойка за просрочку?')
+      questionInputRef.current?.focus()
+    }}
+  >
+    Какая неустойка за просрочку?
+  </button>
 
-                <button onClick={() => setQuestion('Сроки оплаты по договору?')}>
-                   Сроки оплаты по договору?
-                </button>
+  <button
+    onClick={() => {
+      setQuestion('Сроки оплаты по договору?')
+      questionInputRef.current?.focus()
+    }}
+  >
+    Сроки оплаты по договору?
+  </button>
 
-                <button onClick={() => setQuestion('Как расторгнуть договор?')}>
-                  Как расторгнуть договор?
-                </button>
-              </div>
+  <button
+    onClick={() => {
+      setQuestion('Как расторгнуть договор?')
+      questionInputRef.current?.focus()
+    }}
+  >
+    Как расторгнуть договор?
+  </button>
+</div>
 
             </div>
 
