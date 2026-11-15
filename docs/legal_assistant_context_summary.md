@@ -25,7 +25,7 @@
    │ HTTPS
 [Frontend React — fe/anna]                чат, загрузка файлов, показ источников
    │ /api/ask, /api/documents
-[Backend FastAPI — be/petr, be/second]    auth, сессии, PostgreSQL, история, MinIO
+[Backend FastAPI — be/petr, be/second]    auth, сессии, PostgreSQL, история, MinIO (исключён 15.11 — CE архивирован, файлы на volume)
    │ /ask, /ingest   ← ГРАНИЦА ОТВЕТСТВЕННОСТИ (HTTP-контракт v0.1)
 [ML-сервис FastAPI — ml/svalbard1]        retrieval + генерация
    │
@@ -45,7 +45,7 @@
 - HTTP-слой ML: `fastapi>=0.115`, `uvicorn[standard]>=0.30`, `python-multipart>=0.0.9`, pydantic-схемы.
 - LLM (план): Qwen2.5-32B-Instruct-AWQ через vLLM на отдельном GPU-сервере (~20+ ГБ VRAM, RTX 3090/4090). Разработка у всех на CPU.
 - Реранкер (план): `bge-reranker-v2-m3` поверх топ-10.
-- Бекенд (план): FastAPI, httpx (AsyncClient), PostgreSQL, MinIO, docker-compose. Фронт (план): React.
+- Бекенд (план): FastAPI, httpx (AsyncClient), PostgreSQL, MinIO (исключён 15.11), docker-compose. Фронт (план): React.
 - Git: HTTPS + PAT (Personal Access Token), `credential.helper store`.
 
 ## 4. Принятые архитектурные решения
@@ -282,7 +282,7 @@ python-multipart>=0.0.9
 5. Очистка текста PDF перед чанкингом (артефакты `\n`).
 
 Бекенд (be/petr, be/second) — по гайду:
-6. Скелет `backend/`: публичный API `/api/ask`, `/api/documents` (auth, rate-limit), httpx-клиент к ML (сниппет готов), PostgreSQL (диалоги, метаданные), MinIO (файлы), docker-compose (фрагмент готов), прогон чеклиста приёмки из 10 пунктов (включая проверку 502/504 при остановленном ML и плашку «демо-режим» по `llm=="stub"`).
+6. Скелет `backend/`: публичный API `/api/ask`, `/api/documents` (auth, rate-limit), httpx-клиент к ML (сниппет готов), PostgreSQL (диалоги, метаданные), MinIO (файлы; исключён 15.11 — CE архивирована, файлы на volume), docker-compose (фрагмент готов), прогон чеклиста приёмки из 10 пунктов (включая проверку 502/504 при остановленном ML и плашку «демо-режим» по `llm=="stub"`).
 
 Фронт (fe/anna):
 7. Чат, загрузка файлов, показ `sources`, плашка «демо-режим» по полю `llm`.

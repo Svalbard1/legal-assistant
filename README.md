@@ -13,7 +13,7 @@
 | Компонент | Стек | Порт | Код | Статус |
 |---|---|---|---|---|
 | ML-сервис (RAG: поиск + генерация) | FastAPI, bge-m3, Qdrant (local) | **8001** | `ml/` | ✅ работает (v0.1) |
-| Backend (auth, сессии, PostgreSQL, MinIO) | FastAPI | **8000** | `backend/` | 🚧 в разработке |
+| Backend (auth, сессии, PostgreSQL, файлы на volume) | FastAPI | **8000** | `backend/` | 🚧 в разработке |
 | Frontend (чат, загрузка файлов, источники) | React + Vite | **5173** | `frontend/` | 🚧 в разработке |
 | Автосабмит платформы | Python stdlib | — | `ml/submit/solution.py` | ✅ валидирован |
 
@@ -35,6 +35,41 @@ ML и Qdrant — внутренние сервисы, наружу не торч
 2. Граница папок = граница ответственности: бекенд не коммитит в `ml/`, ML — в `backend/`, фронт — в `frontend/` и `docs/`.
 3. Контракт ML↔backend (`ml/docs/API_CONTRACT.md` + `ml/service.py`) меняется только одним PR с ревью ml + backend.
 4. Секреты — только в `.env` (в git не попадают); материалы базы знаний и PDF кейса в git не публикуются.
+
+## Запуск Backend и применение миграций
+
+Перед первым запуском Backend необходимо применить миграции PostgreSQL.
+
+Из корня проекта выполни команды по порядку:
+
+1. Запусти PostgreSQL и дождись его готовности:
+
+   ```bash
+   docker compose up -d --wait postgres
+   ```
+
+2. Примени миграции Alembic:
+
+   ```bash
+   docker compose run --rm --no-deps --build \
+     -e ALEMBIC_DB_HOST=postgres \
+     -e ALEMBIC_DB_PORT=5432 \
+     backend alembic -c /app/alembic.ini upgrade head
+   ```
+
+3. После успешного применения миграций запусти Backend:
+
+   ```bash
+   docker compose up -d backend
+   ```
+
+4. Проверь доступность Backend:
+
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+При последующих обновлениях Backend повторяй шаги 1–3, чтобы применить новые миграции до запуска приложения.
 
 ## Быстрый старт (ML-сервис)
 
