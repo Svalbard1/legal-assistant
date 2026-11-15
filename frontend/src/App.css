@@ -2900,3 +2900,23 @@ body {
     padding: 15px;
   }
 }
+/* Кнопки действий при ошибках */
+.error-action-button {
+  margin: 10px 8px 4px 0;
+  padding: 9px 15px;
+  border: 1px solid #d9e1f5;
+  border-radius: 9px;
+  background: #f0f3ff;
+  color: #173879;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.error-action-button:hover {
+  background: #e2e9ff;
+}
+
+.error-action-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}

@@ -129,6 +129,7 @@ function App() {
   const [serviceStatus, setServiceStatus] = useState('checking')
   const [question, setQuestion] = useState('')
   const questionInputRef = useRef(null)
+  const fileInputRef = useRef(null)
   const [messages, setMessages] = useState([])
   const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(null)
@@ -267,8 +268,8 @@ useEffect(() => {
 }, [loadSessions])
 
   // ОТПРАВКА ВОПРОСА
-  async function handleSend() {
-    const text = question.trim()
+  async function handleSend(questionToSend = question, retryMessageIndex = null) {
+    const text = questionToSend.trim()
 
     if (!text || isLoading) return
 
@@ -277,12 +278,16 @@ useEffect(() => {
       return
     }
 
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', content: text },
-    ])
+    if (retryMessageIndex !== null) {
+      setMessages((prev) => prev.filter((_, index) => index !== retryMessageIndex))
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: text },
+      ])
+      setQuestion('')
+    }
 
-    setQuestion('')
     setIsLoading(true)
 
     try {
@@ -310,6 +315,8 @@ useEffect(() => {
           role: 'assistant',
           content: error.message || 'Не удалось получить ответ',
           isError: true,
+          errorCode: error.code,
+          retryQuestion: text,
         },
       ])
     } finally {
@@ -469,6 +476,7 @@ useEffect(() => {
               style={{ cursor: isUploading ? 'wait' : 'pointer' }}
             >
               <input
+                ref={fileInputRef}
                 type="file"
                 accept=".pdf,.docx,.txt,.md"
                 onChange={handleFileChange}
@@ -600,13 +608,38 @@ useEffect(() => {
                           : message.content}
                         </p>
 
-                        <button
-                          type="button"
-                          className="copy-answer-button"
-                          onClick={() => handleCopy(message.content, index)}
-                        >
-                          {copiedMessageIndex === index ? '✓ Скопировано' : 'Копировать ответ'}
-                         </button>
+                        {message.isError && message.errorCode === 503 && (
+                          <button
+                            type="button"
+                            className="error-action-button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                          >
+                            Загрузить документ
+                          </button>
+                        )}
+
+                        {message.isError &&
+                          [502, 504].includes(message.errorCode) && (
+                            <button
+                              type="button"
+                              className="error-action-button"
+                              onClick={() => handleSend(message.retryQuestion, index)}
+                              disabled={isLoading}
+                            >
+                              Повторить
+                            </button>
+                          )}
+
+                        {!message.isError && (
+                          <button
+                            type="button"
+                            className="copy-answer-button"
+                            onClick={() => handleCopy(message.content, index)}
+                          >
+                            {copiedMessageIndex === index ? '✓ Скопировано' : 'Копировать ответ'}
+                          </button>
+                        )}
 
                         {/* ПОМЕТКА ДЕМО-РЕЖИМА */}
                         {message.llm === 'stub' && (
