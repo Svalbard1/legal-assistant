@@ -79,6 +79,7 @@ export function health() {
 }
 
 // Отправка вопроса
+
 export function ask(question, top_k = 3) {
   if (question.length < 3 || question.length > 2000) {
     return Promise.reject({
@@ -89,7 +90,10 @@ export function ask(question, top_k = 3) {
 
   return request("/ask", {
     method: "POST",
-    body: { question, top_k },
+    body: {
+      question,
+      top_k,
+    },
     timeout: 90000,
   });
 }

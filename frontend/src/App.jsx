@@ -1,9 +1,9 @@
-
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { health, ask, ingest } from './api'
 import './App.css'
 
 // СПИСОК ИСТОЧНИКОВ
+
 function SourcesList({
   sources,
   messageIndex,
@@ -12,15 +12,18 @@ function SourcesList({
 }) {
   const [showAll, setShowAll] = useState(false)
 
+
+
   useEffect(() => {
-    if (requestedSourceIndex === null || requestedSourceIndex === undefined) {
+    if (
+      requestedSourceIndex === null ||
+      requestedSourceIndex === undefined
+    ) {
       return
     }
 
-    // Если источник скрыт, сначала показываем все источники
     if (requestedSourceIndex >= 3 && !showAll) {
       setShowAll(true)
-      return
     }
 
     const element = document.getElementById(
@@ -46,7 +49,7 @@ function SourcesList({
     }, 2000)
 
     return () => window.clearTimeout(timeoutId)
-  }, [requestedSourceIndex, requestId, showAll, messageIndex])
+  }, [requestedSourceIndex, requestId, messageIndex])
 
   if (!Array.isArray(sources) || sources.length === 0) {
     return null
@@ -59,7 +62,7 @@ function SourcesList({
     }))
     .sort((a, b) => (b.score || 0) - (a.score || 0))
 
-  const visibleSources = showAll
+  const visibleSources = showShowAll
     ? sortedSources
     : sortedSources.slice(0, 3)
 
@@ -86,9 +89,7 @@ function SourcesList({
             <span>⌄</span>
           </summary>
 
-          <div className="source-text">
-            {source.text}
-          </div>
+          <div className="source-text">{source.text}</div>
         </details>
       ))}
 
@@ -97,7 +98,7 @@ function SourcesList({
           className="show-sources"
           onClick={() => setShowAll(!showAll)}
         >
-          {showAll
+          {ShowALL
             ? 'Скрыть'
             : `Показать все (${sources.length})`}
         </button>
@@ -109,6 +110,7 @@ function SourcesList({
 function App() {
   const [serviceStatus, setServiceStatus] = useState('checking')
   const [question, setQuestion] = useState('')
+  const questionInputRef = useRef(null)
   const [messages, setMessages] = useState([])
   const [sourceNavigation, setSourceNavigation] = useState({
   messageIndex: null,
@@ -177,11 +179,11 @@ function App() {
   }
 }
   // ПРОВЕРКА СОСТОЯНИЯ СЕРВЕРА
-  useEffect(() => {
-    health()
-      .then(() => setServiceStatus('online'))
-      .catch(() => setServiceStatus('offline'))
-  }, [])
+useEffect(() => {
+  health()
+    .then(() => setServiceStatus('online'))
+    .catch(() => setServiceStatus('offline'))
+}, [])
 
   // ОТПРАВКА ВОПРОСА
   async function handleSend() {
@@ -244,7 +246,7 @@ function App() {
         window.setTimeout(() => {
           setCopiedMessageIndex(null)
         }, 2000)
-       } catch (error) {
+       } catch {
          alert('Не удалось скопировать ответ. Попробуйте выделить текст вручную.')
        }
       }
@@ -565,46 +567,63 @@ function App() {
             {/* ПОЛЕ ВВОДА И ПРИМЕРЫ ВОПРОСОВ */}
             <div className="conversation-bottom">
 
-              <div className="message-input">
-                <span>⌁</span>
+<div className="message-input">
+  <span>⌁</span>
 
-                <input
-                  type="text"
-                  placeholder="Введите ваш юридический вопрос..."
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      handleSend()
-                    }
-                  }}
-                  disabled={isLoading}
-                />
+  <textarea
+    ref={questionInputRef}
+    rows={1}
+    placeholder="Введите ваш юридический вопрос..."
+    value={question}
+    onChange={(event) => setQuestion(event.target.value)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        handleSend()
+      }
+    }}
+    disabled={isLoading}
+  />
 
-                <button
-                  className="send-button"
-                  onClick={handleSend}
-                  disabled={isLoading || !question.trim()}
-                >
-                  ➤
-                </button>
-              </div>
+  <button
+    className="send-button"
+    onClick={handleSend}
+    disabled={isLoading || !question.trim()}
+  >
+    ➤
+  </button>
+</div>
 
               <div className="question-suggestions">
-               <span>ϟ Примеры вопросов:</span>
+  <span>ϟ Примеры вопросов:</span>
 
-                <button onClick={() => setQuestion('Какая неустойка за просрочку?')}>
-                  Какая неустойка за просрочку?
-                </button>
+  <button
+    onClick={() => {
+      setQuestion('Какая неустойка за просрочку?')
+      questionInputRef.current?.focus()
+    }}
+  >
+    Какая неустойка за просрочку?
+  </button>
 
-                <button onClick={() => setQuestion('Сроки оплаты по договору?')}>
-                   Сроки оплаты по договору?
-                </button>
+  <button
+    onClick={() => {
+      setQuestion('Сроки оплаты по договору?')
+      questionInputRef.current?.focus()
+    }}
+  >
+    Сроки оплаты по договору?
+  </button>
 
-                <button onClick={() => setQuestion('Как расторгнуть договор?')}>
-                  Как расторгнуть договор?
-                </button>
-              </div>
+  <button
+    onClick={() => {
+      setQuestion('Как расторгнуть договор?')
+      questionInputRef.current?.focus()
+    }}
+  >
+    Как расторгнуть договор?
+  </button>
+</div>
 
             </div>
 
