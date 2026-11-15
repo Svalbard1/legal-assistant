@@ -7,6 +7,8 @@ WORKDIR /app
 
 COPY backend/requirements.txt ./requirements.txt
 
+COPY alembic.ini ./alembic.ini
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
