@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 import httpx
-from fastapi import Depends, FastAPI, HTTPException
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from pathlib import Path
 from app.database import get_db
 from app.ml_client import ml_client
 from app.models import ChatSession, Message, MessageSource
@@ -29,6 +30,63 @@ app = FastAPI(
 async def health():
     return {"status": "ok"}
 
+ALLOWED_SUFFIXES = {".pdf", ".docx", ".txt", ".md"}
+MAX_UPLOAD_MB = 25
+
+
+@app.post("/api/ingest")
+async def ingest_document(file: UploadFile = File(...)):
+    filename = Path(file.filename or "").name
+    suffix = Path(filename).suffix.lower()
+
+    if suffix not in ALLOWED_SUFFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Формат '{suffix or 'без расширения'}' не поддерживается. "
+                "Разрешены: .docx, .md, .pdf, .txt"
+            ),
+        )
+
+    content = await file.read()
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Файл пустой")
+
+    if len(content) > MAX_UPLOAD_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Файл больше {MAX_UPLOAD_MB} МБ",
+        )
+
+    try:
+        return await ml_client.ingest(
+            filename=filename,
+            content=content,
+            content_type=file.content_type,
+        )
+    except httpx.HTTPStatusError as exc:
+        try:
+            payload = exc.response.json()
+            detail = (
+                payload.get("detail", "ML service returned an error")
+                if isinstance(payload, dict)
+                else "ML service returned an error"
+            )
+        except ValueError:
+            detail = "ML service returned an error"
+
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail=detail,
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="ML service timed out")
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=502,
+            detail="ML service is unavailable",
+        )
 
 @app.post("/api/ask", response_model=AskResponse)
 async def ask(

@@ -7,7 +7,7 @@ class MLClient:
     def __init__(self):
         self.base_url = settings.ML_SERVICE_URL
         self.timeout = httpx.Timeout(90.0, connect=5.0)
-
+        self.upload_timeout = httpx.Timeout(180.0, connect=5.0)
     async def ask(
         self,
         question: str,
@@ -28,6 +28,27 @@ class MLClient:
             )
             response.raise_for_status()
             return response.json()
-
+    async def ingest(
+        self,
+        filename: str,
+        content: bytes,
+        content_type: str | None = None,
+    ) -> dict:
+        async with httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=self.upload_timeout,
+        ) as client:
+            response = await client.post(
+                "/ingest",
+                files={
+                    "file": (
+                        filename,
+                        content,
+                        content_type or "application/octet-stream",
+                    )
+                },
+            )
+            response.raise_for_status()
+            return response.json()
 
 ml_client = MLClient()
