@@ -13,7 +13,7 @@
 | Компонент | Стек | Порт | Код | Статус |
 |---|---|---|---|---|
 | ML-сервис (RAG: поиск + генерация) | FastAPI, bge-m3, Qdrant (local) | **8001** | `ml/` | ✅ работает (v0.1) |
-| Backend (auth, сессии, PostgreSQL, MinIO) | FastAPI | **8000** | `backend/` | 🚧 в разработке |
+| Backend (auth, сессии, PostgreSQL, файлы на volume) | FastAPI | **8000** | `backend/` | 🚧 в разработке |
 | Frontend (чат, загрузка файлов, источники) | React + Vite | **5173** | `frontend/` | 🚧 в разработке |
 | Автосабмит платформы | Python stdlib | — | `ml/submit/solution.py` | ✅ валидирован |
 
