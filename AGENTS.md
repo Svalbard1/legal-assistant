@@ -10,7 +10,7 @@
 | `ml/` | ML-сервис FastAPI (порт 8001): `/health`, `/ingest`, `/ask`; bge-m3 + Qdrant local | ML (Svalbard1) |
 | `ml/submit/` | `solution.py` — сабмит на платформу автопроверки | ML |
 | `ml/docs/` | Контракт API v0.1, гайды интеграции, онбординги | ML + backend (ревью) |
-| `backend/` | Публичный API `/api/ask`, `/api/documents`; auth, PostgreSQL, MinIO | backend |
+| `backend/` | Публичный API `/api/ask`, `/api/ingest`, `/api/documents`; auth, сессии, PostgreSQL, локальное файловое хранилище (Docker volume) | backend |
 | `frontend/` | React-чат, загрузка документов, показ источников | frontend |
 
 Порты: ML 8001 (Swagger `/docs`), backend 8000, frontend 5173.
