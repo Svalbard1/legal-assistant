@@ -6,7 +6,7 @@ from sqlalchemy import select
 from datetime import datetime, timedelta, timezone
 from app.database import get_db
 from app.main import app
-from app.models import ChatSession, Message, MessageSource
+from app.models import ChatSession, Document, Message, MessageSource
 
 
 @pytest_asyncio.fixture
@@ -82,12 +82,28 @@ async def test_ingest_file_validation(
 
 
 @pytest.mark.asyncio
-async def test_ingest_ml_error(client, monkeypatch):
+@pytest.mark.parametrize(
+    ("status_code", "detail"),
+    [
+        (400, "Файл не удалось прочитать"),
+        (500, "Внутренняя ошибка индексации"),
+    ],
+)
+async def test_ingest_ml_error(
+    client,
+    db_session,
+    monkeypatch,
+    status_code,
+    detail,
+):
     async def fake_ingest(**kwargs):
-        request = httpx.Request("POST", "http://localhost:8001/ingest")
+        request = httpx.Request(
+            "POST",
+            "http://localhost:8001/ingest",
+        )
         response = httpx.Response(
-            400,
-            json={"detail": "Файл не удалось прочитать"},
+            status_code,
+            json={"detail": detail},
             request=request,
         )
         raise httpx.HTTPStatusError(
@@ -103,8 +119,18 @@ async def test_ingest_ml_error(client, monkeypatch):
         files={"file": ("contract.pdf", b"content", "application/pdf")},
     )
 
-    assert response.status_code == 400
-    assert response.json() == {"detail": "Файл не удалось прочитать"}
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
+
+    result = await db_session.execute(
+        select(Document).where(
+            Document.filename == "contract.pdf"
+        )
+    )
+    document = result.scalar_one()
+
+    assert document.status == "failed"
+    assert document.error_message == detail
 
 
 @pytest.mark.asyncio
