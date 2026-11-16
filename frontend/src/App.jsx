@@ -673,7 +673,7 @@ useEffect(() => {
                         )}
 
                         {message.isError &&
-                          [502, 504].includes(message.errorCode) && (
+                          [502, 504, 'NETWORK_ERROR', 'TIMEOUT'].includes(message.errorCode) && (
                             <button
                               type="button"
                               className="error-action-button"
@@ -683,7 +683,6 @@ useEffect(() => {
                               Повторить
                             </button>
                           )}
-
                         {!message.isError && (
                           <button
                             type="button"
@@ -766,7 +765,7 @@ useEffect(() => {
 
   <button
     className="send-button"
-    onClick={handleSend}
+    onClick={()=>handleSend()}
     disabled={isLoading || !question.trim()}
   >
     ➤
