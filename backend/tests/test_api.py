@@ -6,7 +6,7 @@ from sqlalchemy import select
 from datetime import datetime, timedelta, timezone
 from app.database import get_db
 from app.main import app
-from app.models import ChatSession, Message, MessageSource
+from app.models import ChatSession, Document, Message, MessageSource
 
 
 @pytest_asyncio.fixture
@@ -24,6 +24,145 @@ async def client(db_session):
 
     app.dependency_overrides.pop(get_db, None)
 
+@pytest.mark.asyncio
+async def test_ingest_success(client, monkeypatch):
+    async def fake_ingest(filename, content, content_type=None):
+        assert filename == "contract.pdf"
+        assert content == b"test pdf content"
+        assert content_type == "application/pdf"
+        return {
+            "doc_id": "test-doc-id",
+            "filename": filename,
+            "chunks": 3,
+            "status": "indexed",
+        }
+
+    monkeypatch.setattr("app.main.ml_client.ingest", fake_ingest)
+
+    response = await client.post(
+        "/api/ingest",
+        files={
+            "file": (
+                "contract.pdf",
+                b"test pdf content",
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "indexed"
+    assert response.json()["chunks"] == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filename", "content", "expected_status"),
+    [
+        ("contract.exe", b"content", 400),
+        ("empty.pdf", b"", 400),
+        ("large.pdf", b"x" * (25 * 1024 * 1024 + 1), 413),
+    ],
+)
+async def test_ingest_file_validation(
+    client, monkeypatch, filename, content, expected_status
+):
+    async def fake_ingest(**kwargs):
+        pytest.fail("ML не должен вызываться для некорректного файла")
+
+    monkeypatch.setattr("app.main.ml_client.ingest", fake_ingest)
+
+    response = await client.post(
+        "/api/ingest",
+        files={"file": (filename, content, "application/octet-stream")},
+    )
+
+    assert response.status_code == expected_status
+    assert "detail" in response.json()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "detail"),
+    [
+        (400, "Файл не удалось прочитать"),
+        (500, "Внутренняя ошибка индексации"),
+    ],
+)
+async def test_ingest_ml_error(
+    client,
+    db_session,
+    monkeypatch,
+    status_code,
+    detail,
+):
+    async def fake_ingest(**kwargs):
+        request = httpx.Request(
+            "POST",
+            "http://localhost:8001/ingest",
+        )
+        response = httpx.Response(
+            status_code,
+            json={"detail": detail},
+            request=request,
+        )
+        raise httpx.HTTPStatusError(
+            "ML error",
+            request=request,
+            response=response,
+        )
+
+    monkeypatch.setattr("app.main.ml_client.ingest", fake_ingest)
+
+    response = await client.post(
+        "/api/ingest",
+        files={"file": ("contract.pdf", b"content", "application/pdf")},
+    )
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
+
+    result = await db_session.execute(
+        select(Document).where(
+            Document.filename == "contract.pdf"
+        )
+    )
+    document = result.scalar_one()
+
+    assert document.status == "failed"
+    assert document.error_message == detail
+
+
+@pytest.mark.asyncio
+async def test_ingest_ml_timeout(client, monkeypatch):
+    async def fake_ingest(**kwargs):
+        raise httpx.TimeoutException("Timeout")
+
+    monkeypatch.setattr("app.main.ml_client.ingest", fake_ingest)
+
+    response = await client.post(
+        "/api/ingest",
+        files={"file": ("contract.pdf", b"content", "application/pdf")},
+    )
+
+    assert response.status_code == 504
+    assert response.json() == {"detail": "ML service timed out"}
+
+
+@pytest.mark.asyncio
+async def test_ingest_ml_unavailable(client, monkeypatch):
+    async def fake_ingest(**kwargs):
+        raise httpx.ConnectError("Connection refused")
+
+    monkeypatch.setattr("app.main.ml_client.ingest", fake_ingest)
+
+    response = await client.post(
+        "/api/ingest",
+        files={"file": ("contract.pdf", b"content", "application/pdf")},
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "ML service is unavailable"}
 
 @pytest.mark.asyncio
 async def test_ask_success(client, db_session, monkeypatch):
@@ -201,6 +340,7 @@ async def test_ask_ml_timeout(client, monkeypatch):
     )
 
     assert response.status_code == 504
+    assert response.json() == {"detail": "ML service timed out"}
 
 
 @pytest.mark.asyncio
@@ -308,3 +448,38 @@ async def test_get_messages_unknown_session(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Chat session not found"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status_code", "detail"),
+    [
+        (404, "Документы не найдены"),
+        (422, "ML rejected the request"),
+    ],
+)
+async def test_ask_ml_error_status_passthrough(
+    client, monkeypatch, status_code, detail
+):
+    async def fake_ask(**kwargs):
+        request = httpx.Request("POST", "http://localhost:8001/ask")
+        response = httpx.Response(
+            status_code,
+            json={"detail": detail},
+            request=request,
+        )
+        raise httpx.HTTPStatusError(
+            "ML error",
+            request=request,
+            response=response,
+        )
+
+    monkeypatch.setattr("app.main.ml_client.ask", fake_ask)
+
+    response = await client.post(
+        "/api/ask",
+        json={"question": "Как взыскать неустойку?"},
+    )
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}

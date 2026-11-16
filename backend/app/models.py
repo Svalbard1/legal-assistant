@@ -175,3 +175,74 @@ class MessageSource(Base):
     message: Mapped["Message"] = relationship(
         back_populates="sources",
     )
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    __table_args__ = (
+        CheckConstraint(
+            "size_bytes > 0",
+            name="check_document_size_positive",
+        ),
+        CheckConstraint(
+            "status IN ('processing', 'indexed', 'failed')",
+            name="check_document_status",
+        ),
+        Index(
+            "ix_documents_created_at",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    filename: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    storage_path: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+    )
+
+    content_type: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    size_bytes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="processing",
+    )
+
+    ml_doc_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    chunks: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )

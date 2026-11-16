@@ -40,6 +40,9 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       ML_SERVICE_URL: http://ml-service:8001
+      UPLOAD_DIR: /app/backend/uploads
+    volumes:
+      - uploads-data:/app/backend/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,3 +54,4 @@ volumes:
   hf-cache:
   qdrant-data:
   postgres-data:
+  uploads-data:
