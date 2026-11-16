@@ -3,8 +3,6 @@ import {
   health,
   ask,
   ingest,
-  getSessions,
-  getSessionMessages,
   getDocuments,
 } from './api'
 import './App.css'
@@ -132,9 +130,9 @@ function App() {
   const questionInputRef = useRef(null)
   const fileInputRef = useRef(null)
   const [messages, setMessages] = useState([])
-  const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(null)
-  const [activeSessionTitle, setActiveSessionTitle] = useState('Новый чат')
+  const [activeSessionTitle] = useState('Новый чат')
+  const [activePage, setActivePage] = useState('chat')
   const [sourceNavigation, setSourceNavigation] = useState({
   messageIndex: null,
   sourceIndex: null,
@@ -146,29 +144,11 @@ function App() {
   const [documents, setDocuments] = useState([])
   const [documentsError, setDocumentsError] = useState('')
   const [uploadError, setUploadError] = useState('')
-
-    // Загрузка списка диалогов
-  const loadSessions = useCallback(async (selectedId = null) => {
-    try {
-      const result = await getSessions()
-      const loadedSessions = result.sessions || []
-
-      setSessions(loadedSessions)
-
-      const activeSession = loadedSessions.find(
-        (session) => session.id === selectedId
-      )
-
-      if (activeSession) {
-        setActiveSessionTitle(activeSession.title || 'Новый чат')
-      }
-    } catch (error) {
-      console.error('Не удалось загрузить историю:', error)
-    }
-  }, [])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
 
   // Загрузка документов из Backend
 const loadDocuments = useCallback(async () => {
+    setIsLoadingDocuments(true)
   try {
     const result = await getDocuments()
     setDocuments(
@@ -178,42 +158,10 @@ const loadDocuments = useCallback(async () => {
   } catch (error) {
     console.error('Не удалось загрузить документы:', error)
     setDocumentsError('Не удалось загрузить список документов.')
+    } finally {
+      setIsLoadingDocuments(false)
   }
 }, [])
-
-  // Создание нового диалога
-  function handleNewChat() {
-    setSessionId(null)
-    setActiveSessionTitle('Новый чат')
-    setMessages([])
-    setQuestion('')
-    setSourceNavigation({
-      messageIndex: null,
-      sourceIndex: null,
-      requestId: 0,
-    })
-  }
-
-  // Открытие существующего диалога
-  async function handleSelectChat(session) {
-    if (isLoading) return
-
-    try {
-      const result = await getSessionMessages(session.id)
-
-      setSessionId(session.id)
-      setActiveSessionTitle(session.title || 'Новый чат')
-      setMessages(result.messages || [])
-      setQuestion('')
-      setSourceNavigation({
-       messageIndex: null,
-       sourceIndex: null,
-       requestId: 0,
-      })
-    } catch (error) {
-      alert(error.message || 'Не удалось открыть диалог.')
-    }
-  }
 
   async function handleFileChange(event) {
   const file = event.target.files?.[0]
@@ -288,11 +236,6 @@ useEffect(() => {
   return () => window.clearTimeout(timer)
 }, [documents, loadDocuments])
 
-// ПЕРВИЧНАЯ ЗАГРУЗКА ИСТОРИИ ЧАТОВ
-useEffect(() => {
-  loadSessions(null)
-}, [loadSessions])
-
   // ОТПРАВКА ВОПРОСА
   async function handleSend(questionToSend = question, retryMessageIndex = null) {
     const text = questionToSend.trim()
@@ -321,7 +264,6 @@ useEffect(() => {
 
       if (result.session_id) {
         setSessionId(result.session_id)
-        await loadSessions(result.session_id)
       }
 
       setMessages((prev) => [
@@ -383,28 +325,23 @@ useEffect(() => {
 
         <nav className="sidebar-nav">
           <button
-            className="new-chat"
-            onClick={handleNewChat}
-            disabled={isLoading}
+            className={`nav-item ${activePage === 'chat' ? 'active' : ''}`}
+            onClick={() => setActivePage('chat')}
           >
-            <span>＋</span>
-            Новый чат
+            <span className="nav-icon">⚖</span>
+            <span>Чат</span>
           </button>
 
-        <button className="nav-item">
-  <span className="nav-icon">◷</span>
-  <span>История</span>
-</button>
-
-<button className="nav-item">
-  <span className="nav-icon">▱</span>
-  <span>Документы</span>
-</button>
-
-<button className="nav-item">
-  <span className="nav-icon">⚙</span>
-  <span>Настройки</span>
-</button>
+          <button
+            className={`nav-item ${activePage === 'documents' ? 'active' : ''}`}
+            onClick={() => {
+              setActivePage('documents')
+              loadDocuments()
+            }}
+          >
+            <span className="nav-icon">▱</span>
+            <span>Документы</span>
+          </button>
         </nav>
 
         {/* КАРТОЧКА СОЛА ГУДМАНА И ПРОФИЛЬ */}
@@ -435,11 +372,9 @@ useEffect(() => {
 
         {/* ВЕРХНЯЯ ПАНЕЛЬ */}
         <header className="topbar">
-          <input
-            className="global-search"
-            type="text"
-            placeholder="Поиск по чатам и документам..."
-          />
+          <h1 className="page-title">
+            {activePage === 'documents' ? 'Документы' : activeSessionTitle}
+          </h1>
 
           <div className="topbar-actions">
   <div className={`status ${serviceStatus}`}>
@@ -452,126 +387,11 @@ useEffect(() => {
         : 'Сервис недоступен'}
   </div>
 
-  <button className="theme-toggle" aria-label="Переключить тему">
-    ☼
-  </button>
 </div>
         </header>
 
-        {/* ДВЕ КОЛОНКИ */}
+        {activePage === 'chat' ? (
         <div className="content-layout">
-
-          {/* СПИСОК ЧАТОВ */}
-          <aside className="chats-panel">
-
-            <div className="chats-heading">
-              <h2>Чаты</h2>
-              <span>☷</span>
-            </div>
-
-            <div className="chat-list">
-              {sessions.map((session) => (
-                <button
-                  key={session.id}
-                  className={`chat-item ${
-                    session.id === sessionId ? 'active' : ''
-                  }`}
-                  onClick={() => handleSelectChat(session)}
-                  disabled={isLoading}
-                >
-                  <span className="chat-icon">▤</span>
-
-                  <span className="chat-info">
-                    <strong>{session.title || 'Новый диалог'}</strong>
-                    <small>Открыть переписку</small>
-                  </span>
-                </button>
-                ))}
-
-                {sessions.length === 0 && (
-                  <p className="empty-chat-list">
-                    Пока нет сохранённых диалогов
-                  </p>
-                )}
-              </div>
-
-            {/* ЗАГРУЗКА ДОКУМЕНТА */}
-            <label
-              className={`upload-card ${isUploading ? 'uploading' : ''}`}
-              aria-disabled={isUploading}
-              style={{ cursor: isUploading ? 'wait' : 'pointer' }}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.docx,.txt,.md"
-                onChange={handleFileChange}
-                disabled={isUploading}
-                style={{ display: 'none' }}
-            />
-
-            <div className="upload-icon">
-              {isUploading ? '⏳' : '▤'}
-            </div>
-
-            <div className="upload-text">
-              <strong>
-                {isUploading ? 'Обработка документа...' : 'Загрузите документ'}
-              </strong>
-
-               <span>
-                {isUploading
-                  ? 'Пожалуйста, подождите'
-                  : 'PDF, DOCX, TXT, MD · до 25 МБ'}
-              </span>
-            </div>
-
-            <span className="upload-arrow">
-              {isUploading ? '...' : '›'}
-            </span>
-          </label>
-
-          {uploadError && (
-            <div className="upload-error">
-              {uploadError}
-            </div>
-          )}
-
-{documentsError && (
-  <div className="upload-error">{documentsError}</div>
-)}
-
-{documents.map((file) => (
-  <div className="uploaded-file" key={file.id}>
-    <strong>{file.filename}</strong>
-
-    <span>
-      {file.status === 'processing' && '⏳ Обрабатывается'}
-      {file.status === 'indexed' && '✓ Проиндексирован'}
-      {file.status === 'failed' && '✕ Ошибка индексации'}
-    </span>
-
-    <span>
-      {file.content_type || 'Тип не указан'}
-      {' · '}
-      {file.size_bytes < 1024 * 1024
-        ? `${Math.round(file.size_bytes / 1024)} КБ`
-        : `${(file.size_bytes / (1024 * 1024)).toFixed(1)} МБ`}
-    </span>
-
-    <span>
-      {file.created_at
-        ? new Date(file.created_at).toLocaleString('ru-RU')
-        : 'Дата не указана'}
-    </span>
-
-    {file.status === 'indexed' && (
-      <span>{file.chunks || 0} фрагментов</span>
-    )}
-  </div>
-))}
-
-          </aside>
 
           {/* ОКНО ПЕРЕПИСКИ */}
           <section className="conversation">
@@ -580,9 +400,6 @@ useEffect(() => {
               <div className="conversation-title">
                 <div className="conversation-icon">⚖</div>
                 <h2>{activeSessionTitle}</h2>
-                <button className="edit-title-button" aria-label="Изменить название чата">
-                  ✎
-                </button>
               </div>
 
               <span className="demo-badge">ⓘ Демо-режим</span>
@@ -665,7 +482,7 @@ useEffect(() => {
                           <button
                             type="button"
                             className="error-action-button"
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={() => setActivePage('documents')}
                             disabled={isUploading}
                           >
                             Загрузить документ
@@ -766,7 +583,7 @@ useEffect(() => {
 
   <button
     className="send-button"
-    onClick={handleSend}
+    onClick={() => handleSend()}
     disabled={isLoading || !question.trim()}
   >
     ➤
@@ -808,6 +625,89 @@ useEffect(() => {
 
           </section>
         </div>
+        ) : (
+          <section className="documents-page" aria-labelledby="documents-title">
+            <div className="documents-page-header">
+              <div>
+                <h2 id="documents-title">База документов</h2>
+                <p>Загрузите материалы, по которым ассистент будет искать ответы.</p>
+              </div>
+              <button
+                type="button"
+                className="documents-refresh-button"
+                onClick={loadDocuments}
+                disabled={isLoadingDocuments}
+              >
+                {isLoadingDocuments ? 'Обновляем…' : 'Обновить список'}
+              </button>
+            </div>
+
+            <label
+              className={`documents-upload ${isUploading ? 'uploading' : ''}`}
+              aria-disabled={isUploading}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.txt,.md"
+                onChange={handleFileChange}
+                disabled={isUploading}
+                hidden
+              />
+              <span className="documents-upload-icon">{isUploading ? '⏳' : '＋'}</span>
+              <span>
+                <strong>{isUploading ? 'Индексируем документ…' : 'Загрузить документ'}</strong>
+                <small>PDF, DOCX, TXT или MD · до 25 МБ</small>
+              </span>
+            </label>
+
+            {uploadError && <div className="documents-alert error">{uploadError}</div>}
+            {documentsError && (
+              <div className="documents-alert error" role="alert">
+                <span>{documentsError}</span>
+                <button type="button" onClick={loadDocuments}>Повторить</button>
+              </div>
+            )}
+
+            <div className="documents-list-heading">
+              <h3>Загруженные документы</h3>
+              <span>{documents.length}</span>
+            </div>
+
+            {isLoadingDocuments && documents.length === 0 ? (
+              <p className="documents-empty">Загружаем список документов…</p>
+            ) : documents.length === 0 ? (
+              <div className="documents-empty">
+                <strong>Документов пока нет</strong>
+                <span>Загрузите файл, чтобы начать задавать вопросы по нему.</span>
+              </div>
+            ) : (
+              <div className="documents-list">
+                {documents.map((file) => (
+                  <article className="document-row" key={file.id}>
+                    <span className="document-file-icon">▤</span>
+                    <div className="document-main">
+                      <strong title={file.filename}>{file.filename}</strong>
+                      <span>
+                        {file.content_type || 'Тип файла не указан'}
+                        {' · '}
+                        {file.size_bytes < 1024 * 1024
+                          ? `${Math.max(1, Math.round(file.size_bytes / 1024))} КБ`
+                          : `${(file.size_bytes / (1024 * 1024)).toFixed(1)} МБ`}
+                        {file.created_at && ` · ${new Date(file.created_at).toLocaleDateString('ru-RU')}`}
+                      </span>
+                    </div>
+                    <span className={`document-status ${file.status}`}>
+                      {file.status === 'indexed' && `Проиндексирован · ${file.chunks || 0} фрагм.`}
+                      {file.status === 'processing' && 'Обрабатывается'}
+                      {file.status === 'failed' && 'Ошибка индексации'}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* ПРЕДУПРЕЖДЕНИЕ */}
         <footer className="safety-note">
@@ -816,6 +716,19 @@ useEffect(() => {
         </footer>
 
       </main>
+
+      <aside className="right-rail" aria-label="Better Call AI">
+        <div className="right-rail-brand">
+          <p className="right-rail-title" aria-label="Better Call AI">
+            <span>BETTER</span>
+            <span>CALL <strong>AI</strong></span>
+          </p>
+          <p className="right-rail-tagline">
+            Интеллектуальный помощник для юридической практики.
+          </p>
+        </div>
+      </aside>
+
     </div>
   )
 }

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legal Assistant — презентация решения</title>
+  <style>
+    :root {
+      --navy: #071b3f;
+      --navy2: #102b59;
+      --orange: #ff6a1a;
+      --blue: #3e75d8;
+      --pale: #eef3fb;
+      --ink: #14243d;
+      --muted: #60718a;
+      --green: #1b9a78;
+      --line: #dce5f1;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #dce3ed; color: var(--ink); font-family: Inter, "Segoe UI", Arial, sans-serif; }
+    body { padding: 24px 0; }
+    .slide {
+      position: relative; width: 1280px; height: 720px; margin: 0 auto 24px; padding: 54px 68px 48px;
+      overflow: hidden; background: #fff; page-break-after: always; break-after: page;
+      box-shadow: 0 12px 42px #071b3f24;
+    }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+    .slide::after { content: ""; position: absolute; left: 68px; right: 68px; bottom: 27px; height: 1px; background: var(--line); }
+    .topline { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; }
+    .mark { width:11px; height:11px; border-radius:3px; background:var(--orange); }
+    h1 { margin:26px 0 18px; max-width:1050px; color:var(--navy); font-size:48px; line-height:1.08; letter-spacing:-.035em; }
+    h2 { margin:0; color:var(--navy); font-size:24px; line-height:1.2; }
+    p { margin:0; line-height:1.48; }
+    .subtitle { max-width:880px; color:var(--muted); font-size:21px; line-height:1.42; }
+    .footer { position:absolute; z-index:2; left:68px; right:68px; bottom:11px; display:flex; justify-content:space-between; color:#77869b; font-size:12px; }
+    .grid { display:grid; gap:18px; }
+    .two { grid-template-columns:1fr 1fr; }
+    .three { grid-template-columns:repeat(3,1fr); }
+    .card { padding:22px 24px; border:1px solid var(--line); border-radius:16px; background:#fff; }
+    .card.soft { background:var(--pale); border-color:transparent; }
+    .card.dark { color:#fff; background:var(--navy); border-color:var(--navy); }
+    .eyebrow { margin-bottom:10px; color:var(--orange); font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    .big { color:var(--navy); font-size:46px; font-weight:800; line-height:1; letter-spacing:-.04em; }
+    .label { margin-top:8px; color:var(--muted); font-size:15px; line-height:1.4; }
+    .dark .label { color:#c4d1e7; }
+    .bodycopy { margin-top:10px; color:var(--muted); font-size:16px; line-height:1.5; }
+    ul.clean { margin:10px 0 0; padding:0; list-style:none; }
+    ul.clean li { position:relative; margin:10px 0; padding-left:22px; font-size:17px; line-height:1.4; }
+    ul.clean li::before { content:""; position:absolute; top:.48em; left:0; width:8px; height:8px; border-radius:50%; background:var(--orange); }
+    .tag { display:inline-block; padding:7px 11px; border-radius:99px; color:var(--navy2); background:#e8effb; font-size:13px; font-weight:700; }
+    .warning { padding:14px 17px; border-left:4px solid var(--orange); border-radius:8px; background:#fff3eb; color:#6c3a1b; font-size:15px; line-height:1.45; }
+    .flow { display:flex; align-items:stretch; gap:10px; margin-top:24px; }
+    .step { flex:1; display:flex; flex-direction:column; justify-content:center; min-height:116px; padding:17px; border-radius:14px; background:var(--pale); }
+    .step strong { color:var(--navy); font-size:17px; }
+    .step small { margin-top:7px; color:var(--muted); font-size:13px; line-height:1.35; }
+    .arrow { align-self:center; color:var(--orange); font-size:24px; font-weight:800; }
+    .statrow { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+    .statrow:last-child { border-bottom:0; }
+    .statrow span { color:var(--muted); font-size:15px; }
+    .statrow b { color:var(--navy); font-size:19px; }
+    .barbox { margin-top:18px; }
+    .barlabel { display:flex; justify-content:space-between; margin:13px 0 6px; color:var(--muted); font-size:14px; }
+    .bar { height:14px; overflow:hidden; border-radius:20px; background:#e9eef5; }
+    .bar i { display:block; height:100%; border-radius:20px; background:var(--blue); }
+    .bar.orange i { background:var(--orange); }
+    table { width:100%; border-collapse:collapse; font-size:15px; }
+    th { padding:13px 12px; color:#fff; background:var(--navy); text-align:left; }
+    th:first-child { border-radius:10px 0 0 0; }
+    th:last-child { border-radius:0 10px 0 0; }
+    td { padding:13px 12px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.4; }
+    tr.selected td { background:#fff3eb; font-weight:700; }
+    .screen { padding:16px; border-radius:18px; background:#f3f6fb; border:1px solid var(--line); }
+    .screenbar { display:flex; gap:6px; padding:3px 0 13px; }
+    .dot { width:8px; height:8px; border-radius:50%; background:#c1cada; }
+    .bubble { max-width:88%; margin:9px 0; padding:13px 15px; border-radius:13px; background:#fff; font-size:14px; line-height:1.4; box-shadow:0 2px 8px #102b590a; }
+    .bubble.user { margin-left:auto; color:#fff; background:var(--navy2); }
+    .source { padding:10px 12px; border:1px solid #d7e2f1; border-radius:10px; background:#fff; font-size:12px; line-height:1.4; }
+    .source b { color:var(--blue); }
+    .pillrow { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .checklist { counter-reset:check; }
+    .check { display:flex; gap:15px; align-items:flex-start; padding:13px 0; border-bottom:1px solid var(--line); font-size:16px; line-height:1.35; }
+    .check:last-child { border-bottom:0; }
+    .num { flex:0 0 27px; display:grid; place-items:center; width:27px; height:27px; border-radius:50%; color:#fff; background:var(--orange); font-size:13px; font-weight:800; }
+    a { color:#245cb3; text-decoration:none; }
+    .cover { color:#fff; background:radial-gradient(circle at 82% 16%, #24508e 0, transparent 31%), linear-gradient(135deg,#071b3f 0%,#102b59 72%,#153a70 100%); }
+    .cover::after { background:#ffffff30; }
+    .cover h1 { max-width:900px; margin-top:44px; color:#fff; font-size:62px; }
+    .cover .subtitle { color:#d6e2f4; }
+    .cover .topline { color:#c7d5ea; }
+    .cover .footer { color:#b9c8df; }
+    .cover .orb { position:absolute; right:-76px; bottom:-206px; width:535px; height:535px; border:1px solid #ffffff24; border-radius:50%; }
+    .cover .orb::before,.cover .orb::after { content:""; position:absolute; border:1px solid #ffffff24; border-radius:50%; }
+    .cover .orb::before { inset:54px; }.cover .orb::after { inset:110px; }
+    .cover .orangebar { width:72px; height:7px; margin:27px 0; border-radius:9px; background:var(--orange); }
+    .cover .meta { display:flex; gap:26px; margin-top:31px; color:#c4d1e7; font-size:14px; }
+    .cover .meta b { display:block; margin-bottom:5px; color:#fff; font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+    .smallnote { color:var(--muted); font-size:12px; line-height:1.4; }
+    .accent { color:var(--orange); }
+    .center { text-align:center; }
+    @page { size: 13.333in 7.5in; margin:0; }
+    @media print {
+      html,body { width:1280px; background:#fff; padding:0; }
+      .slide { margin:0; box-shadow:none; }
+    }
+  </style>
+</head>
+<body>
+  <section class="slide cover">
+    <div class="orb"></div>
+    <div class="topline"><i class="mark"></i>Hack&amp;Change 2026 · решение команды</div>
+    <h1>Юридический ответ<br>начинается с источника</h1>
+    <div class="orangebar"></div>
+    <p class="subtitle">Legal Assistant — RAG-ассистент для поиска по договорам и регламентам с проверяемыми фрагментами-основаниями.</p>
+    <div class="meta">
+      <div><b>Репозиторий</b><a href="https://github.com/Svalbard1/legal-assistant" style="color:#ffd0b2">github.com/Svalbard1/legal-assistant</a></div>
+      <div><b>Публичный демо-сайт</b>Не развёрнут · проверка локально через Docker</div>
+      <div><b>Срез проекта</b>16 ноября 2026</div>
+    </div>
+    <div style="position:absolute;left:68px;bottom:105px;width:690px;padding:17px 20px;border:1px solid #ffffff35;border-radius:14px;background:#ffffff0c;color:#e6edf8">
+      <strong style="display:block;margin-bottom:8px;color:#fff">Порядок проверки экспертом</strong>
+      <span style="font-size:14px;line-height:1.55">1. `cp .env.example .env` → `docker compose up --build -d`<br>2. Открыть `http://localhost:5173` · 3. Загрузить разрешённый документ в ML `/docs`<br>4. Задать вопрос → раскрыть источник и сверить фрагмент с документом</span>
+    </div>
+    <div class="footer"><span>Локальный прототип · данные кейса не включены в публичную поставку</span><span>01 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>01 · проблема</div>
+    <h1>Юристу нужен не «текст от ИИ», а проверяемое основание</h1>
+    <p class="subtitle">В договоре важны точная редакция, пункт и контекст. Уверенный, но неподтверждённый ответ создаёт риск.</p>
+    <div class="grid three" style="margin-top:34px">
+      <div class="card soft"><div class="eyebrow">Поиск вручную</div><h2>Долго листать массив документов</h2><p class="bodycopy">Условия могут быть в разных файлах, редакциях и формулировках.</p></div>
+      <div class="card soft"><div class="eyebrow">Обычный чат-бот</div><h2>Ответ может звучать убедительно</h2><p class="bodycopy">Но без ссылки на первоисточник трудно проверить факт и применимость.</p></div>
+      <div class="card dark"><div class="eyebrow">Критерий решения</div><h2 style="color:#fff">Каждое утверждение — к фрагменту документа</h2><p class="label">Если оснований нет — не маскировать пробел догадкой.</p></div>
+    </div>
+    <div class="footer"><span>Целевая аудитория: юрист, проверяющий договоры и внутренние документы</span><span>02 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>02 · решение</div>
+    <h1>Мы выбрали RAG: сначала найти доказательство, затем сформулировать ответ</h1>
+    <div class="flow">
+      <div class="step"><strong>Документы</strong><small>PDF · DOCX · TXT · MD<br>до 25 МБ в ML API</small></div><div class="arrow">→</div>
+      <div class="step"><strong>Разбор и чанки</strong><small>Фрагменты по ~400 символов<br>с перекрытием 50</small></div><div class="arrow">→</div>
+      <div class="step"><strong>Гибридный поиск</strong><small>Семантический bge-m3<br>+ BM25, слияние рангов</small></div><div class="arrow">→</div>
+      <div class="step"><strong>Ответ + источники</strong><small>Фрагменты, score, страница<br>или отказ при слабом сигнале</small></div>
+    </div>
+    <div class="grid two" style="margin-top:26px">
+      <div class="card"><div class="eyebrow">Отличие от «сразу спросить LLM»</div><p style="font-size:18px;line-height:1.5">Генерация получает ограниченный контекст найденных документов, а интерфейс показывает источники рядом с ответом.</p></div>
+      <div class="card"><div class="eyebrow">Осознанный выбор режима</div><p style="font-size:18px;line-height:1.5">Без настроенного LLM система работает в stub-режиме: возвращает детерминированную выжимку источников. Внешняя генерация подключается отдельно.</p></div>
+    </div>
+    <div class="footer"><span>Проверяемость важнее стилистической «гладкости» ответа</span><span>03 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>03 · сквозной сценарий</div>
+    <h1>Пользователь задаёт вопрос — и сразу видит, откуда взят ответ</h1>
+    <div class="grid two" style="grid-template-columns:.95fr 1.05fr;margin-top:22px">
+      <div>
+        <div class="checklist">
+          <div class="check"><span class="num">1</span><div><b>Выбирает или загружает документ</b><br><span class="smallnote">Для демо загрузка идёт прямо в ML API; загрузка через Backend пока не реализована.</span></div></div>
+          <div class="check"><span class="num">2</span><div><b>Спрашивает о конкретном условии</b><br><span class="smallnote">Например: «Какая неустойка за просрочку поставки?»</span></div></div>
+          <div class="check"><span class="num">3</span><div><b>Получает ответ, источники и страницу</b><br><span class="smallnote">Можно раскрыть фрагмент и проверить формулировку в оригинале.</span></div></div>
+          <div class="check"><span class="num">4</span><div><b>При недостатке контекста — видит отказ</b><br><span class="smallnote">Нет оснований в базе — нет выдуманного условия.</span></div></div>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="screenbar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span style="margin-left:auto;color:#8998ad;font-size:11px">Legal Assistant · прототип интерфейса</span></div>
+        <div class="bubble user">Какая неустойка за просрочку поставки?</div>
+        <div class="bubble">В тестовом договоре предусмотрена неустойка 0,1% стоимости товара за каждый день просрочки, но не более 10% общей стоимости.</div>
+        <div class="source"><b>ИСТОЧНИК · пример.txt · п. 4.1</b><br>«…0,1% от стоимости товара за каждый день просрочки, но не более 10% от общей стоимости.»</div>
+        <div class="pillrow"><span class="tag">Файл</span><span class="tag">Страница / пункт</span><span class="tag">Фрагмент</span></div>
+      </div>
+    </div>
+    <div class="warning" style="margin-top:16px">Иллюстрация ответа на синтетическом демонстрационном файле `пример.txt`, не юридическая рекомендация и не результат по закрытой базе кейса.</div>
+    <div class="footer"><span>Сценарий основан на API и UI текущей версии проекта</span><span>04 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>04 · архитектура</div>
+    <h1>Сервисы разделены по ответственности; поиск работает локально</h1>
+    <div class="flow" style="margin-top:24px">
+      <div class="step" style="background:#fff3eb"><strong>Браузер</strong><small>React + Vite<br>порт 5173</small></div><div class="arrow">→</div>
+      <div class="step"><strong>Backend API</strong><small>FastAPI · порт 8000<br>сессии, история, источники</small></div><div class="arrow">→</div>
+      <div class="step" style="background:#e9f4f1"><strong>ML/RAG API</strong><small>FastAPI · порт 8001<br>ingest · retrieval · answer</small></div>
+    </div>
+    <div class="grid three" style="margin-top:18px">
+      <div class="card"><div class="eyebrow">Индекс</div><h2>Qdrant embedded</h2><p class="bodycopy">Локальный persistent volume; один процесс ML — хранилище держит файловую блокировку.</p></div>
+      <div class="card"><div class="eyebrow">Диалоги</div><h2>PostgreSQL</h2><p class="bodycopy">Сессии, сообщения и источники сохраняются Backend; схема применяется Alembic.</p></div>
+      <div class="card"><div class="eyebrow">Генерация</div><h2>Stub по умолчанию</h2><p class="bodycopy">Опционально — внешний OpenAI-совместимый Chat Completions API через env.</p></div>
+    </div>
+    <p class="smallnote" style="margin-top:18px">Docker Compose запускает PostgreSQL → миграции → Backend, а также ML и Nginx-Frontend. Исходная база кейса не включается в публичный репозиторий.</p>
+    <div class="footer"><span>ML API: `/health`, `/ingest`, `/ask` · Backend: `/api/ask`, `/api/sessions`</span><span>05 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>05 · качество поиска</div>
+    <h1>На 27 локальных вопросах качество топ‑3 сохранено, MRR вырос</h1>
+    <div class="grid two" style="grid-template-columns:1.05fr .95fr;margin-top:22px">
+      <div class="card soft">
+        <div class="eyebrow">Golden-QA · локальный eval</div>
+        <p style="font-size:16px;color:var(--muted)">Текущая конфигурация: чанки 400/50 · BAAI/bge-m3 · Qdrant</p>
+        <div class="barbox">
+          <div class="barlabel"><span>Recall@3 · baseline</span><b>92,6%</b></div><div class="bar"><i style="width:92.6%"></i></div>
+          <div class="barlabel"><span>Recall@3 · текущая</span><b>92,6%</b></div><div class="bar orange"><i style="width:92.6%"></i></div>
+          <div class="barlabel"><span>MRR · baseline</span><b>0,844</b></div><div class="bar"><i style="width:84.4%"></i></div>
+          <div class="barlabel"><span>MRR · текущая</span><b>0,865</b></div><div class="bar orange"><i style="width:86.5%"></i></div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:15px"><div class="big">+0,021</div><div class="label">изменение MRR относительно baseline (0,844 → 0,865)</div></div>
+        <div class="card"><div class="big">27</div><div class="label">эталонных вопросов в локальном golden-наборе; оценивался retrieval, не «правдивость» генерации</div></div>
+      </div>
+    </div>
+    <div class="warning" style="margin-top:17px">Это offline-метрики поиска на локальном наборе, не оценка юридической точности или платформенный балл. База организаторов и её закрытые материалы в презентацию не включены.</div>
+    <div class="footer"><span>Источник: `ml/README.md`, `ml/config.py`, eval-код в репозитории</span><span>06 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>06 · инженерный выбор</div>
+    <h1>Мы оставили компактный чанк: более широкий контекст не улучшил ранжирование</h1>
+    <table style="margin-top:26px">
+      <thead><tr><th>Вариант</th><th>Recall@3</th><th>MRR</th><th>Контекст</th><th>Решение</th></tr></thead>
+      <tbody>
+        <tr><td>500 / overlap 50</td><td>94,4%</td><td>0,931</td><td>1 525 симв.</td><td>Baseline сравнения</td></tr>
+        <tr class="selected"><td>400 / overlap 50</td><td>100,0%</td><td>0,935</td><td>1 238 симв.</td><td>Выбрали: выше recall, короче контекст</td></tr>
+        <tr><td>600 / overlap 50</td><td>94,4%</td><td>0,875</td><td>1 793 симв.</td><td>Не выбрали</td></tr>
+      </tbody>
+    </table>
+    <div class="grid two" style="margin-top:22px">
+      <div class="card"><div class="eyebrow">Вывод эксперимента</div><p style="font-size:17px;line-height:1.5">На этом golden-наборе 400/50 закрыл промах в топ‑3 и уменьшил размер контекста примерно на 19% относительно 500/50.</p></div>
+      <div class="card"><div class="eyebrow">Почему не усложняли</div><p style="font-size:17px;line-height:1.5">Структурный чанкинг с заголовком секции дал тот же recall@3, но более низкие MRR и recall@1 — добавленный заголовок разбавлял эмбеддинг пункта.</p></div>
+    </div>
+    <p class="smallnote" style="margin-top:11px">Таблица — отдельный сравнительный прогон из ML-аудита на golden-наборе. Не смешивать с актуальным контрольным прогоном на другом наборе из предыдущего слайда.</p>
+    <div class="footer"><span>Источник: `ml/docs/AUDIT_ML.md`, разделы 9–10</span><span>07 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>07 · надёжность</div>
+    <h1>Когда доказательств мало, интерфейс должен показать границу знания</h1>
+    <div class="grid two" style="margin-top:27px">
+      <div class="card soft"><div class="eyebrow">Штатный сценарий</div><ul class="clean"><li>Вопрос проходит строгую валидацию.</li><li>Поиск возвращает фрагменты документов.</li><li>Ответ сопровождается источниками и метаданными.</li><li>История диалога хранится в PostgreSQL.</li></ul></div>
+      <div class="card"><div class="eyebrow">Нештатный сценарий</div><ul class="clean"><li>Пустой индекс → API сообщает, что документы нужно загрузить.</li><li>Слабый сигнал поиска → отказ, источники при этом доступны для проверки.</li><li>Сбой внешнего LLM → fallback на выжимку источников.</li><li>Недоступен ML → Backend возвращает 502/504.</li></ul></div>
+    </div>
+    <div class="grid three" style="margin-top:18px">
+      <div class="card"><div class="big" style="font-size:34px">76</div><div class="label">ML unit + API smoke тестов прошли локально</div></div>
+      <div class="card"><div class="big" style="font-size:34px">Ruff</div><div class="label">линтер ML прошёл без замечаний</div></div>
+      <div class="card"><div class="big" style="font-size:34px">UI ✓</div><div class="label">Frontend lint и production build прошли</div></div>
+    </div>
+    <div class="footer"><span>Тесты проверки API используют fake encoder; это не end-to-end eval реальной модели</span><span>08 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>08 · ценность и внедрение</div>
+    <h1>Ценность — сократить путь до нужного пункта, не подменяя решение юриста</h1>
+    <div class="grid two" style="margin-top:26px">
+      <div class="card dark"><div class="eyebrow">Пользователю</div><h2 style="color:white">Быстрее найти условие и проверить контекст</h2><ul class="clean"><li>Поиск по смыслу и точным терминам.</li><li>Источник раскрывается рядом с ответом.</li><li>История помогает продолжить диалог.</li></ul></div>
+      <div class="card soft"><div class="eyebrow">Бизнесу</div><h2>Потенциал измеряется в пилоте</h2><ul class="clean"><li>Время до релевантного пункта.</li><li>Доля ответов с подтверждённым источником.</li><li>Доля корректных отказов на вопросах вне базы.</li><li>Доля запросов, требующих ручной эскалации.</li></ul></div>
+    </div>
+    <div class="flow" style="margin-top:20px">
+      <div class="step"><strong>1 · Теневой пилот</strong><small>Анонимизированный корпус<br>без действий от имени юриста</small></div><div class="arrow">→</div>
+      <div class="step"><strong>2 · Разметка</strong><small>Юристы оценивают релевантность<br>ответа, источника и отказа</small></div><div class="arrow">→</div>
+      <div class="step"><strong>3 · Сравнение</strong><small>Время/качество против<br>текущего процесса</small></div><div class="arrow">→</div>
+      <div class="step"><strong>4 · Контрольный запуск</strong><small>Доступ, аудит, безопасность<br>и регламент обработки данных</small></div>
+    </div>
+    <div class="footer"><span>Сокращение времени — гипотеза для измерения, не заявленный достигнутый эффект</span><span>09 / 10</span></div>
+  </section>
+
+  <section class="slide">
+    <div class="topline"><i class="mark"></i>09 · статус и следующий шаг</div>
+    <h1>Прототип проверяем; до пилота нужны загрузка через Backend и эксплуатационные контроли</h1>
+    <div class="grid two" style="margin-top:25px">
+      <div class="card"><div class="eyebrow">Уже реализовано</div><ul class="clean"><li>ML ingestion и поиск по документам.</li><li>Источники в ответе, сессии и история чата.</li><li>React-интерфейс, PostgreSQL и миграции.</li><li>Локальный Docker Compose всего стека.</li><li>Автономный ZIP-сабмит для платформы.</li></ul></div>
+      <div class="card soft"><div class="eyebrow">Ограничения / развитие</div><ul class="clean"><li>Публичный hosted demo не развёрнут; база знаний не входит в репозиторий.</li><li>Загрузка файла из UI ожидает Backend `/api/ingest`, которого пока нет; демо ingest идёт напрямую в ML API.</li><li>Нет auth/ролей и production-наблюдаемости.</li><li>Следом: Backend upload, аудит доступа, оценка на разрешённом корпусе и пилот с юристами.</li></ul></div>
+    </div>
+    <div class="warning" style="margin-top:17px">Проверка Docker-инструкции воспроизводится в репозитории; локальный контейнерный запуск в среде подготовки этой презентации не подтверждался из-за отсутствующего Docker Compose plugin.</div>
+    <div class="footer"><span>Репозиторий: github.com/Svalbard1/legal-assistant · README содержит шаги проверки</span><span>10 / 10</span></div>
+  </section>
+</body>
+</html>

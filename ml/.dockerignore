@@ -1,0 +1,14 @@
+.git
+.qdrant
+data/kb
+data/uploads
+data/**/*.pdf
+data/**/*.docx
+data/**/*.doc
+__pycache__
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.env
+.env.*
+!.env.example

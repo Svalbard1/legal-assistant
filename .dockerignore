@@ -10,6 +10,21 @@ __pycache__
 **/.env
 .env.*
 **/.env.*
+!.env.example
+**/.env.example
+**/node_modules
+**/dist
+**/build
+**/.qdrant
+**/data/kb
+**/data/uploads
+**/data/**/*.pdf
+**/data/**/*.docx
+**/__pycache__
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/htmlcov
 
 # Локальное хранилище документов
 /uploads/

@@ -33,6 +33,7 @@ build/
 Thumbs.db
 # === Материалы кейса: PDF не публикуем (репо публичный) ===
 docs/*.pdf
+!docs/presentation.pdf
 
 # Сборки сабмита
 ml/submission_*.zip

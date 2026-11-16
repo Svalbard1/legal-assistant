@@ -6,12 +6,12 @@
 
 | Компонент | Реализация | Порт | Состояние |
 |---|---|---:|---|
-| ML/RAG API | FastAPI, bge-m3, Qdrant embedded, BM25 + dense retrieval | 8001 | Реализован: `/health`, `/ingest`, `/ask` |
-| Backend API | FastAPI, PostgreSQL, история диалогов | 8000 | Реализованы health, ask и API истории; загрузка документа через backend пока не реализована |
-| Web UI | React + Vite | 5173 | Клиент чата; отдельный dev-сервер, в Docker Compose не включён |
+| ML/RAG API | FastAPI, bge-m3, Qdrant embedded, BM25 + dense retrieval | 8002 на хосте / 8001 в Compose | Реализован: `/health`, `/ingest`, `/ask` |
+| Backend API | FastAPI, PostgreSQL, история диалогов и загрузка документов | 8000 | Реализованы health, ask, документы и API истории |
+| Web UI | React + Vite, production-сборка в Nginx | 5173 (в контейнере 80) | Клиент чата |
 | Автосабмит | `ml/submit/solution.py` | — | Отдельное решение для платформы, не является способом запуска локального веб-приложения |
 
-Поток запроса: браузер → Backend `/api/ask` → ML `/ask` → поиск по Qdrant → ответ и источники. Загрузка документов в текущей сборке выполняется напрямую в ML API через `POST /ingest`.
+Поток запроса: браузер → Backend `/api/ask` → ML `/ask` → поиск по Qdrant → ответ и источники. Документы загружаются из раздела «Документы» в UI через Backend `/api/ingest`, который сохраняет файл и передаёт его в ML `/ingest`.
 
 ## Требования
 
@@ -20,31 +20,27 @@
 - Доступ в интернет при первом запуске ML: скачиваются Docker-образы и модель `BAAI/bge-m3` (кэшируется в Docker volume)
 - Для создания ZIP-сабмита см. [`ml/submit/README.md`](ml/submit/README.md)
 
-## Запуск сервисов через Docker Compose
+## Запуск всего приложения одной командой
 
 Из корня репозитория:
 
 ```bash
 cp .env.example .env
-docker compose up -d --build --wait postgres ml-service
-docker compose run --rm --no-deps \
-  -e ALEMBIC_DB_HOST=postgres \
-  -e ALEMBIC_DB_PORT=5432 \
-  backend alembic -c /app/alembic.ini upgrade head
-docker compose up -d backend
+docker compose up --build -d
 ```
 
-Это поднимает PostgreSQL, ML API и Backend. Первый старт ML может занять время на скачивание модели. Миграции PostgreSQL обязательны перед первым запуском Backend и после обновлений схемы.
+Команда собирает образы и запускает PostgreSQL, ML API, Backend и Web UI. Compose дожидается готовности PostgreSQL, выполняет миграции Alembic один раз и только после их успешного завершения запускает Backend. ML при первом запуске скачивает `BAAI/bge-m3`, поэтому старт может занять несколько минут; кэш модели сохраняется в Docker volume. Дождитесь готовности по `docker compose ps`/логам сервисов.
 
 Проверка:
 
 ```bash
-curl http://localhost:8001/health
+curl http://localhost:8002/health
 curl http://localhost:8000/health
 ```
 
-- ML Swagger: <http://localhost:8001/docs>
+- ML Swagger: <http://localhost:8002/docs> (порт 8002 на хосте проброшен на порт 8001 контейнера)
 - Backend OpenAPI: <http://localhost:8000/docs>
+- Web UI: <http://localhost:5173>
 - PostgreSQL с хоста доступен на `localhost:5433`; внутри Compose Backend подключается к `postgres:5432`.
 
 Остановить сервисы, сохранив данные в volumes:
@@ -59,27 +55,15 @@ docker compose down
 docker compose down -v
 ```
 
-### Запуск Web UI
-
-Frontend не входит в Compose — запустите его отдельным процессом. Пока Compose-сервисы работают:
-
-```bash
-cd frontend
-npm ci
-npm run dev -- --host 0.0.0.0
-```
-
-Откройте адрес Vite, обычно <http://localhost:5173>. Для смены URL Backend задайте `VITE_API_BASE_URL` (см. [`frontend/.env.example`](frontend/.env.example)); переменные `VITE_*` встраиваются в клиентский код и не должны содержать секретов.
-
-> Итого, сейчас нет единственной команды, которая поднимает все компоненты приложения: Compose запускает Backend, ML и PostgreSQL, миграция выполняется отдельной командой, а UI запускается через npm отдельно.
+Frontend обслуживается Nginx из контейнера; `VITE_API_BASE_URL` встраивается во время сборки образа. В локальном `.env` можно задать другой URL, доступный браузеру пользователя. `VITE_*` переменные встраиваются в клиентский код и не должны содержать секретов.
 
 ## Первый запрос и загрузка документа
 
-ML API принимает `.pdf`, `.docx`, `.txt` и `.md` размером до 25 МБ. Пример с тестовым текстом из репозитория:
+В основном сценарии загрузите документ в разделе «Документы» веб-интерфейса: Backend сохранит оригинал и отправит его в ML-индекс. ML API принимает `.pdf`, `.docx`, `.txt` и `.md` размером до 25 МБ. Для ручной проверки напрямую через ML API используйте хост-порт `8002` (внутри Compose сервис слушает `8001`). Пример с тестовым текстом из репозитория:
 
 ```bash
-curl -F "file=@ml/data/sample/пример.txt" http://localhost:8001/ingest
-curl -X POST http://localhost:8001/ask \
+curl -F "file=@ml/data/sample/пример.txt" http://localhost:8002/ingest
+curl -X POST http://localhost:8002/ask \
   -H 'Content-Type: application/json' \
   -d '{"question":"Какие условия указаны в документе?","top_k":3}'
 ```
@@ -95,13 +79,13 @@ curl -X POST http://localhost:8001/ask \
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Compose, Backend, Alembic | Настройки PostgreSQL. Для локального примера поменяйте пароль перед использованием вне изолированной разработки. |
 | `POSTGRES_HOST`, `POSTGRES_PORT` | Backend при запуске вне Compose | Адрес БД; в Compose Backend получает внутренние `postgres:5432`. |
 | `DATABASE_URL` | Backend (необязательно) | Полный DSN, если нужно переопределить автоматически собранное соединение. |
-| `ML_SERVICE_URL` | Backend | URL ML API; в Compose задаётся как `http://ml-service:8001`. |
+| `ML_SERVICE_URL` | Backend | URL ML API; в Compose задан как `http://ml-service:8001`. |
 | `LLM_API_URL` | ML (необязательно) | Base URL OpenAI-совместимого API; пустое значение оставляет stub-режим. |
 | `LLM_API_KEY`, `LLM_MODEL` | ML (необязательно) | Ключ и имя модели выбранного провайдера; ключ передаётся как Bearer-токен. Храните его только в локальном `.env`/секрет-хранилище. |
 | `TEMPERATURE`, `MAX_TOKENS` | ML (необязательно) | Параметры генерации; по умолчанию `0.0` и `1024`. |
-| `VITE_API_BASE_URL` | Frontend | URL Backend для браузерного клиента; шаблон — `frontend/.env.example`. |
+| `VITE_API_BASE_URL` | Frontend | URL Backend для браузерного клиента; корневой `.env.example` задаёт `http://localhost:8000`. |
 
-Пути индекса и загрузок ML сейчас заданы в `ml/config.py`: `ml/.qdrant` и `ml/data/uploads`. В Compose Qdrant хранится в volume `qdrant-data`, кэш Hugging Face — в `hf-cache`. Для тестового/демо-запуска API `/ingest` загрузите документ после старта: индекс формируется по загруженным файлам, не по содержимому Docker-образа.
+В Compose оригиналы, индекс Qdrant и кэш Hugging Face хранятся в persistent volumes `uploads-data`, `qdrant-data` и `hf-cache`. Для тестового/демо-запуска загрузите разрешённый документ после старта: индекс формируется по загруженным файлам, не по закрытой базе кейса внутри Docker-образа.
 
 ## Подключение внешнего LLM API (необязательно)
 
@@ -118,8 +102,8 @@ curl -X POST http://localhost:8001/ask \
    LLM_MODEL=provider-model-id
    ```
 
-3. Передайте эти переменные ML-контейнеру. Сейчас корневой `docker-compose.yml` явно задаёт `LLM_API_URL` пустым и не прокидывает ключ/модель. Поэтому для Compose нужно добавить в секцию `ml-service.environment` значения из окружения, например `LLM_API_URL: ${LLM_API_URL:-}`, `LLM_API_KEY: ${LLM_API_KEY:-}` и `LLM_MODEL: ${LLM_MODEL:-}`, затем пересоздать сервис командой `docker compose up -d --build ml-service`.
-4. Проверьте `GET http://localhost:8001/health`: при настроенном URL API поле `llm` указывает `vllm`. Вызов API тарифицируется и обрабатывается по условиям выбранного провайдера; не отправляйте туда конфиденциальные документы без разрешения и соответствующей настройки обработки данных.
+3. Укажите значения в локальном `.env`. `compose.yaml` передаёт `LLM_API_URL`, `LLM_API_KEY` и `LLM_MODEL` в ML-контейнер; пересоберите/перезапустите его: `docker compose up -d --build ml-service`.
+4. Проверьте `GET http://localhost:8002/health` (или `http://ml-service:8001/health` из сети Compose): при настроенном URL API поле `llm` указывает `vllm`. Вызов API тарифицируется и обрабатывается по условиям выбранного провайдера; не отправляйте туда конфиденциальные документы без разрешения и соответствующей настройки обработки данных.
 
 `LLM_API_URL`, `LLM_API_KEY`, `LLM_MODEL` — имена переменных ML-сервиса; также распознаются совместимые алиасы `LLM_BASE_URL`/`OPENAI_BASE_URL`, `OPENAI_API_KEY` и `GEN_MODEL`/`OPENAI_MODEL`. Реализация вызывает chat completions, а не использует внешний API для эмбеддингов: эмбеддинги строятся локально через `BAAI/bge-m3`.
 
@@ -128,9 +112,9 @@ curl -X POST http://localhost:8001/ask \
 - ML: `ml/Dockerfile`, версии Python-зависимостей закреплены в [`ml/requirements.txt`](ml/requirements.txt); CPU-сборка PyTorch задаётся в Dockerfile.
 - Backend: `backend/Dockerfile`, версии закреплены в [`backend/requirements.txt`](backend/requirements.txt).
 - Frontend: [`frontend/package-lock.json`](frontend/package-lock.json) фиксирует npm-дерево; используйте `npm ci`.
-- Корневой [`docker-compose.yml`](docker-compose.yml) описывает PostgreSQL, ML и Backend. [`.dockerignore`](.dockerignore) исключает Git, виртуальные окружения и `.env` из Docker build context.
+- Корневой [`compose.yaml`](compose.yaml) описывает PostgreSQL, миграции, ML, Backend и Frontend. Dockerfile есть у каждого приложения; [`.dockerignore`](.dockerignore) и контекстные ignore-файлы исключают секреты, пользовательские данные и кэши из сборок.
 
-Для публикации проекта архивируйте исходники и конфигурацию, необходимые для сборки; не добавляйте `.env`, кэши, виртуальные окружения, `.qdrant`, пользовательские загрузки, секреты и закрытые материалы кейса. Учтите: реальная база знаний из `ml/data/kb/` не распространяется; для демонстрации загрузите разрешённые документы самостоятельно. Для требуемого финальной проверкой Docker-запуска «всё одной командой» необходимо дополнительно контейнеризовать frontend и автоматизировать применение миграций — в текущем репозитории этого нет.
+Для публикации проекта архивируйте исходники и конфигурацию, необходимые для сборки; не добавляйте `.env`, кэши, виртуальные окружения, `.qdrant`, пользовательские загрузки, секреты и закрытые материалы кейса. Учтите: реальная база знаний из `ml/data/kb/` не распространяется; для демонстрации загрузите разрешённые документы самостоятельно.
 
 ## Проверка
 
@@ -171,7 +155,7 @@ frontend/            React/Vite UI и package-lock.json
 ml/                  RAG API, индексация, retrieval, тесты
 ml/submit/           Автономное решение для платформенного ZIP-сабмита
 docs/                API-контракт и интеграционные документы
-docker-compose.yml   Локальная инфраструктура (PostgreSQL, ML, Backend)
+compose.yaml         Запуск всей инфраструктуры (PostgreSQL, миграции, ML, Backend, Frontend)
 ```
 
 - [ML: запуск, тесты и eval](ml/README.md)
