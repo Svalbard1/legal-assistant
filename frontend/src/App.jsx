@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   health,
   ask,
   ingest,
   getSessions,
   getSessionMessages,
+  getDocuments,
 } from './api'
 import './App.css'
 
@@ -129,6 +130,7 @@ function App() {
   const [serviceStatus, setServiceStatus] = useState('checking')
   const [question, setQuestion] = useState('')
   const questionInputRef = useRef(null)
+  const fileInputRef = useRef(null)
   const [messages, setMessages] = useState([])
   const [sessions, setSessions] = useState([])
   const [sessionId, setSessionId] = useState(null)
@@ -141,7 +143,8 @@ function App() {
   const [copiedMessageIndex, setCopiedMessageIndex] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState([])
+  const [documents, setDocuments] = useState([])
+  const [documentsError, setDocumentsError] = useState('')
   const [uploadError, setUploadError] = useState('')
 
     // Загрузка списка диалогов
@@ -163,6 +166,20 @@ function App() {
       console.error('Не удалось загрузить историю:', error)
     }
   }, [])
+
+  // Загрузка документов из Backend
+const loadDocuments = useCallback(async () => {
+  try {
+    const result = await getDocuments()
+    setDocuments(
+      Array.isArray(result.documents) ? result.documents : []
+    )
+    setDocumentsError('')
+  } catch (error) {
+    console.error('Не удалось загрузить документы:', error)
+    setDocumentsError('Не удалось загрузить список документов.')
+  }
+}, [])
 
   // Создание нового диалога
   function handleNewChat() {
@@ -230,17 +247,9 @@ function App() {
   setIsUploading(true)
 
   try {
-    const result = await ingest(file)
+    await ingest(file)
 
-    setUploadedFiles((previousFiles) => [
-      {
-        filename: result.filename,
-        chunks: result.chunks,
-      },
-      ...previousFiles.filter(
-        (item) => item.filename !== result.filename
-      ),
-    ])
+    await loadDocuments()
   } catch (error) {
     if (error.code === 400) {
       setUploadError('Формат не поддерживается или в файле не найден текст.')
@@ -261,14 +270,32 @@ useEffect(() => {
     .catch(() => setServiceStatus('offline'))
 }, [])
 
+// Первичная загрузка документов
+useEffect(() => {
+  loadDocuments()
+}, [loadDocuments])
+
+// Обновление статусов документов во время индексации
+useEffect(() => {
+  if (!documents.some((document) => document.status === 'processing')) {
+    return
+  }
+
+  const timer = window.setTimeout(() => {
+    loadDocuments()
+  }, 2500)
+
+  return () => window.clearTimeout(timer)
+}, [documents, loadDocuments])
+
 // ПЕРВИЧНАЯ ЗАГРУЗКА ИСТОРИИ ЧАТОВ
 useEffect(() => {
   loadSessions(null)
 }, [loadSessions])
 
   // ОТПРАВКА ВОПРОСА
-  async function handleSend() {
-    const text = question.trim()
+  async function handleSend(questionToSend = question, retryMessageIndex = null) {
+    const text = questionToSend.trim()
 
     if (!text || isLoading) return
 
@@ -277,12 +304,16 @@ useEffect(() => {
       return
     }
 
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', content: text },
-    ])
+    if (retryMessageIndex !== null) {
+      setMessages((prev) => prev.filter((_, index) => index !== retryMessageIndex))
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: text },
+      ])
+      setQuestion('')
+    }
 
-    setQuestion('')
     setIsLoading(true)
 
     try {
@@ -310,6 +341,8 @@ useEffect(() => {
           role: 'assistant',
           content: error.message || 'Не удалось получить ответ',
           isError: true,
+          errorCode: error.code,
+          retryQuestion: text,
         },
       ])
     } finally {
@@ -469,6 +502,7 @@ useEffect(() => {
               style={{ cursor: isUploading ? 'wait' : 'pointer' }}
             >
               <input
+                ref={fileInputRef}
                 type="file"
                 accept=".pdf,.docx,.txt,.md"
                 onChange={handleFileChange}
@@ -503,10 +537,37 @@ useEffect(() => {
             </div>
           )}
 
-{uploadedFiles.map((file, index) => (
-  <div className="uploaded-file" key={`${file.filename}-${index}`}>
-    <strong>✓ Проиндексировано: {file.filename}</strong>
-    <span>{file.chunks} фрагментов</span>
+{documentsError && (
+  <div className="upload-error">{documentsError}</div>
+)}
+
+{documents.map((file) => (
+  <div className="uploaded-file" key={file.id}>
+    <strong>{file.filename}</strong>
+
+    <span>
+      {file.status === 'processing' && '⏳ Обрабатывается'}
+      {file.status === 'indexed' && '✓ Проиндексирован'}
+      {file.status === 'failed' && '✕ Ошибка индексации'}
+    </span>
+
+    <span>
+      {file.content_type || 'Тип не указан'}
+      {' · '}
+      {file.size_bytes < 1024 * 1024
+        ? `${Math.round(file.size_bytes / 1024)} КБ`
+        : `${(file.size_bytes / (1024 * 1024)).toFixed(1)} МБ`}
+    </span>
+
+    <span>
+      {file.created_at
+        ? new Date(file.created_at).toLocaleString('ru-RU')
+        : 'Дата не указана'}
+    </span>
+
+    {file.status === 'indexed' && (
+      <span>{file.chunks || 0} фрагментов</span>
+    )}
   </div>
 ))}
 
@@ -600,13 +661,38 @@ useEffect(() => {
                           : message.content}
                         </p>
 
-                        <button
-                          type="button"
-                          className="copy-answer-button"
-                          onClick={() => handleCopy(message.content, index)}
-                        >
-                          {copiedMessageIndex === index ? '✓ Скопировано' : 'Копировать ответ'}
-                         </button>
+                        {message.isError && message.errorCode === 503 && (
+                          <button
+                            type="button"
+                            className="error-action-button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                          >
+                            Загрузить документ
+                          </button>
+                        )}
+
+                        {message.isError &&
+                          [502, 504].includes(message.errorCode) && (
+                            <button
+                              type="button"
+                              className="error-action-button"
+                              onClick={() => handleSend(message.retryQuestion, index)}
+                              disabled={isLoading}
+                            >
+                              Повторить
+                            </button>
+                          )}
+
+                        {!message.isError && (
+                          <button
+                            type="button"
+                            className="copy-answer-button"
+                            onClick={() => handleCopy(message.content, index)}
+                          >
+                            {copiedMessageIndex === index ? '✓ Скопировано' : 'Копировать ответ'}
+                          </button>
+                        )}
 
                         {/* ПОМЕТКА ДЕМО-РЕЖИМА */}
                         {message.llm === 'stub' && (
